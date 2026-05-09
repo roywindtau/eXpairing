@@ -1,0 +1,167 @@
+Project Demands — Recommender Systems Workshop
+1. Course Goal
+
+Build a working recommender system as a project.
+
+Treat it like a startup product
+Focus on hands-on learning and practical implementation
+The domain is completely up to you
+2. What is a Recommender System?
+
+A recommender system is an ML system that:
+
+Predicts user preferences
+Suggests relevant items
+Learns from:
+User behavior
+Metadata
+Interaction data
+Helps users discover new items
+
+Core pipeline:
+
+Generate candidate items
+Predict score/probability for each
+Rank and return Top-K results
+3. Project Requirements
+חובה (Core Requirements)
+✅ Working demo / MVP
+✅ At least one learning algorithm (ML-based)
+✅ Interesting features beyond trivial recommendation
+Important Constraints
+❌ Do NOT focus on building a “perfect” or highly accurate model
+✅ Combine multiple simple approaches instead
+✅ Include several modules (not just one recommender)
+4. System Architecture (Expected)
+
+A typical system should include:
+
+Core Components
+UI (Frontend)
+Recommendation Engine
+Data Layer
+Database and/or files
+Training Pipeline (Offline)
+Serving Layer (Online / Real-time)
+Extended Modules (Recommended)
+Content-Based model
+Collaborative Filtering model
+Data collection (e.g., scraper)
+Search / autocomplete
+External APIs (LLMs, embeddings)
+5. Recommendation Approaches
+
+You are expected to implement at least one (preferably more):
+
+5.1 Content-Based Filtering
+Uses item features (metadata, text, images)
+Build:
+Item profiles
+User profiles
+Recommend similar items
+
+Key techniques:
+
+Feature extraction (text, structured, visual)
+Vectorization:
+TF-IDF
+Embeddings
+Similarity:
+Cosine similarity
+5.2 Collaborative Filtering
+
+Based on user behavior only (no semantics required)
+
+Types:
+User-based CF
+Item-based CF
+Model-based (Matrix Factorization)
+
+Key ideas:
+
+User-Item matrix
+Similarity between users/items
+Predict missing interactions
+5.3 Hybrid Systems
+Combine Content-Based + CF
+Often best in practice
+6. Data Considerations
+Types of Data
+Implicit data (preferred):
+clicks, views, watch time, etc.
+Explicit data:
+ratings, likes
+
+👉 Implicit data usually reflects true preferences better
+
+Challenges
+Sparsity
+Most user-item interactions are missing (~99%)
+Cold Start
+New users → no data
+New items → no interactions
+
+Possible solutions:
+
+Popular items
+Metadata (CB)
+Ask user input
+Real-time updates
+7. Engineering Guidelines
+Development Philosophy
+Start simple (“hello world” modules)
+Optimize for learning and experience, not perfection
+Use existing frameworks when possible
+Avoid over-engineering
+Technical Flexibility
+No restriction on:
+Language
+Platform
+Deployment (local/web)
+You can use:
+APIs (no credit card!)
+Open-source tools
+Files or databases
+NOT Required
+High scalability
+Production-level reliability
+Automated retraining pipelines
+8. Project Milestones
+1. Proposal
+
+Present:
+
+Use case
+Dataset
+Unique idea
+Modules breakdown
+2. Mid Presentation (15 min)
+Live demo (if possible)
+Current challenges
+Roadmap
+3. Final Presentation (15 min)
+Working system demo
+Lessons learned
+What worked / didn’t
+9. Submission Requirements
+Team: up to 4 students
+Final submission: single GitHub repository
+10. Key Success Criteria (Implicit but Critical)
+
+Your project should demonstrate:
+
+Real personalization (not static lists)
+Use of ML logic (even simple)
+Multiple interacting components
+Clear system design
+Practical understanding of recommender systems
+11. Practical Tips (High Value)
+Start with:
+simple ranking (e.g., popularity)
+then improve gradually
+Combine:
+CF + CB + heuristics
+
+Keep it simple:
+
+“KISS — Keep It Simple, Stupid”

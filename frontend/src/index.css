@@ -1,0 +1,190 @@
+/* ── CSS variables ─────────────────────────────────────────── */
+:root {
+  --green-50:   #f0fdf4;
+  --green-100:  #dcfce7;
+  --green-500:  #22c55e;
+  --green-600:  #16a34a;
+  --green-700:  #15803d;
+  --amber-100:  #fef3c7;
+  --amber-400:  #fbbf24;
+  --red-100:    #fee2e2;
+  --red-400:    #f87171;
+  --red-500:    #ef4444;
+  --blue-50:    #eff6ff;
+  --blue-100:   #dbeafe;
+  --blue-500:   #3b82f6;
+  --blue-600:   #2563eb;
+  --gray-50:    #f9fafb;
+  --gray-100:   #f3f4f6;
+  --gray-200:   #e5e7eb;
+  --gray-300:   #d1d5db;
+  --gray-400:   #9ca3af;
+  --gray-500:   #6b7280;
+  --gray-600:   #4b5563;
+  --gray-700:   #374151;
+  --gray-800:   #1f2937;
+  --gray-900:   #111827;
+  --radius-sm:  4px;
+  --radius-md:  6px;
+}
+
+/* ── Reset ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--gray-50);
+  color: var(--gray-900);
+  line-height: 1.5;
+}
+
+/* ── App shell ───────────────────────────────────────────── */
+.app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── Nav ─────────────────────────────────────────────────── */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  height: 52px;
+  background: white;
+  border-bottom: 1px solid var(--gray-200);
+  position: sticky; top: 0; z-index: 10;
+}
+
+.nav-brand {
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+  color: var(--gray-900);
+  text-decoration: none;
+  letter-spacing: -.01em;
+}
+
+.nav-links { display: flex; gap: 1.75rem; }
+
+.nav-link {
+  text-decoration: none;
+  color: var(--gray-500);
+  font-size: .875rem;
+  font-weight: 500;
+  padding: .25rem 0;
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+
+.nav-link:hover { color: var(--gray-800); }
+.nav-link.active { color: var(--gray-900); border-bottom-color: var(--gray-900); }
+
+/* ── Page container ──────────────────────────────────────── */
+.page {
+  padding: 1.5rem;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.page-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  letter-spacing: -.01em;
+}
+
+/* ── Cards ───────────────────────────────────────────────── */
+.card {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+
+/* ── Recipe grid ─────────────────────────────────────────── */
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .45rem .9rem;
+  border-radius: 4px;
+  font-size: .875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background .15s, opacity .15s;
+}
+
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-primary  { background: var(--blue-500); color: white; }
+.btn-primary:hover:not(:disabled) { background: #2563eb; }
+
+.btn-danger   { background: var(--red-500); color: white; }
+.btn-danger:hover:not(:disabled) { background: #dc2626; }
+
+.btn-ghost    { background: white; color: var(--gray-700); border-color: var(--gray-300); }
+.btn-ghost:hover:not(:disabled) { background: var(--gray-100); }
+
+/* ── Badges ──────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .15rem .45rem;
+  border-radius: 3px;
+  font-size: .72rem;
+  font-weight: 500;
+  letter-spacing: .01em;
+}
+
+.badge-green  { background: var(--green-100);  color: var(--green-700); }
+.badge-amber  { background: var(--amber-100);  color: #b45309; }
+.badge-red    { background: var(--red-100);    color: #b91c1c; }
+.badge-blue   { background: var(--blue-100);   color: var(--blue-600); }
+.badge-gray   { background: var(--gray-100);   color: var(--gray-600); }
+
+/* ── Forms ───────────────────────────────────────────────── */
+.form-group { display: flex; flex-direction: column; gap: .35rem; }
+
+.form-label { font-size: .875rem; font-weight: 500; color: var(--gray-700); }
+
+.form-input {
+  padding: .5rem .75rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  font-size: .9rem;
+  outline: none;
+  transition: border-color .15s;
+}
+
+.form-input:focus { border-color: var(--blue-500); }
+
+/* ── Date badge ──────────────────────────────────────────── */
+.date { font-size: .75rem; color: var(--gray-500); }
+
+/* ── Empty state ─────────────────────────────────────────── */
+.empty { text-align: center; padding: 3rem 1rem; color: var(--gray-400); }
+.empty-icon { font-size: 2rem; display: block; margin-bottom: .75rem; }
+
+/* ── Spinner ─────────────────────────────────────────────── */
+.spinner-wrap { display: flex; justify-content: center; padding: 3rem; }
+
+.spinner {
+  width: 2rem; height: 2rem;
+  border: 3px solid var(--gray-200);
+  border-top-color: var(--blue-500);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }

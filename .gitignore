@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite3
+
+# ML artifacts (too large for git; recreate with train_pipeline.sh)
+models/*.pkl
+models/*.npz
+models/*.npy
+models/*.json
+
+# Data (download via data/download_foodcom.py)
+data/RAW_recipes.csv
+data/RAW_interactions.csv
+data/openfoodfacts_cache.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
+frontend/demo-video/
+
+# Credentials (never commit)
+kaggle.json
+.kaggle/
+*.key
+*.pem
+
+# Environment
+.env
+.env.local
+.env.*.local
+OPENAI_API_KEY
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
