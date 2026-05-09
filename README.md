@@ -59,7 +59,7 @@ tests/             321 tests (unit + behavioral integration + E2E)
 
 ## Quick start (local, no ML models needed)
 
-> All commands run from the **project root** (`smartrecipes/`) unless stated otherwise.
+> All commands run from the **project root** unless stated otherwise.
 
 ### Step 1 — Install Python dependencies
 
@@ -375,8 +375,7 @@ models/                      Trained artifacts (git-ignored)
 
 ## Team
 
-Add your names here.
-
+TBD
 ---
 
 ## Dataset
