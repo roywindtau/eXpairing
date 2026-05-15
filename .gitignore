@@ -24,6 +24,11 @@ data/RAW_recipes.csv
 data/RAW_interactions.csv
 data/openfoodfacts_cache.json
 
+# Drink datasets (download via data/download_drinks.py)
+data/beer_reviews.csv
+data/xwines_wines.csv
+data/xwines_ratings.csv
+
 # Frontend
 frontend/node_modules/
 frontend/dist/
@@ -48,3 +53,6 @@ OPENAI_API_KEY
 .idea/
 .vscode/
 *.swp
+
+# Cursor's files
+.cursor/
