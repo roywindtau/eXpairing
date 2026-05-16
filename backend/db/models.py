@@ -8,6 +8,8 @@ Tables:
     PantryItem  -- one row per ingredient a user currently has
     Recipe      -- seeded from Food.com CSV; never written by the app
     UserEvent   -- every cook/skip/rate action (feeds beta_updater)
+    Drink       -- beer + wine catalog, seeded from drinks CSVs
+    DrinkEvent  -- every drink rating (explicit or synthesizer-derived)
 """
 
 from datetime import date
@@ -113,3 +115,60 @@ class UserEvent(Base):
     created_at  = Column(DateTime, server_default=func.now(), index=True)
 
     user = relationship("User", back_populates="events")
+
+
+class Drink(Base):
+    """
+    Unified beer + wine catalog, discriminated by `kind`.
+    Beer-specific and wine-specific columns are nullable.
+    Seeded from data/beer_reviews.csv and data/xwines_wines.csv.
+    """
+    __tablename__ = "drinks"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    kind            = Column(String, nullable=False, index=True)   # "beer" | "wine"
+    name            = Column(String, nullable=False, index=True)
+    producer        = Column(String, nullable=True)                # brewer / winery
+    country         = Column(String, nullable=True)
+    abv             = Column(Float,  nullable=True)
+    avg_rating      = Column(Float,  nullable=True)
+    n_ratings       = Column(Integer, default=0)
+    # space-separated top-N most-frequent non-stopword tokens from reviews
+    # used by train_drink_cb.py as part of each drink's CB document
+    review_tokens_csv = Column(Text, nullable=True)
+
+    # ── beer-specific (nullable) ─────────────────────────────────────────
+    style           = Column(String, nullable=True)                # "IPA", "Stout", ...
+    ibu             = Column(Float,  nullable=True)
+    avg_aroma       = Column(Float,  nullable=True)
+    avg_taste       = Column(Float,  nullable=True)
+    avg_palate      = Column(Float,  nullable=True)
+    avg_appearance  = Column(Float,  nullable=True)
+
+    # ── wine-specific (nullable; from X-Wines) ───────────────────────────
+    wine_type       = Column(String, nullable=True)                # "Red" | "White" | "Rose" | "Sparkling" | "Dessert" | "Dessert/Port"
+    variety         = Column(String, nullable=True)                # primary grape
+    grapes_csv      = Column(Text,   nullable=True)                # full grape list, comma-sep
+    region          = Column(String, nullable=True)
+    body            = Column(String, nullable=True)                # "Full-bodied" | "Medium-bodied" | "Light-bodied" | "Very full-bodied"
+    acidity         = Column(String, nullable=True)                # "High" | "Medium" | "Low"
+    sweetness       = Column(Integer, nullable=True)               # only populated by Slim/Full X-Wines, not Test
+    tannin          = Column(Integer, nullable=True)               # only populated by Slim/Full X-Wines, not Test
+    harmonize_csv   = Column(Text,   nullable=True)                # comma-sep food categories, e.g. "Beef,Lamb,Pasta"
+
+
+class DrinkEvent(Base):
+    """
+    User x drink rating events.
+    `synthetic=True` rows are written by drink_synthesizer.py from high recipe
+    ratings and are EXCLUDED from CF training (see train_drink_cf.py).
+    """
+    __tablename__ = "drink_events"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    user_id     = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    drink_id    = Column(Integer, ForeignKey("drinks.id"), nullable=False, index=True)
+    event_type  = Column(String, nullable=False)        # v1: "rate" only
+    rating      = Column(Float, nullable=True)
+    synthetic   = Column(Boolean, default=False, nullable=False)
+    created_at  = Column(DateTime, server_default=func.now(), index=True)

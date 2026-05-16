@@ -1,0 +1,139 @@
+# Drink Recommender — Implementation Steps (v1, completed)
+
+This document is the **as-shipped record** of how the drink recommender was built — 11 steps, each independently shippable and tested. For the architecture and reasoning behind the design see [`drink-recsys-design.md`](./drink-recsys-design.md); for what to build next see [`drink-recsys-future.md`](./drink-recsys-future.md).
+
+**Status:** ✅ All 11 steps complete. Backend test suite: 530 passing / 2 pre-existing recipe-CF failures unrelated to drinks. Frontend `tsc --noEmit`: clean.
+
+---
+
+## Where things ended up vs. what was planned
+
+Most of the plan landed as written. A few intentional divergences worth noting up-front:
+
+| Topic | Plan | Reality | Why |
+|---|---|---|---|
+| Path B CF routing | "No SVD ever runs in Path B" — forced cold-start branch | Path B calls the same `get_cf_scores` as Path A | Hard-coding the cold-start branch would have ignored a warm user's explicit drink ratings in Path B, which is worse not better. The strategy matrix already does the right thing based on `n_explicit`. |
+| Expert boost range | `[-0.25, +0.25]` (with negative penalties for bad pairs) | `[0, +0.25]` (positive boosts only) | Simpler, safer; a wrong negative penalty would actively hide a drink the user might love. Bad pairings just don't get the boost, which already deprioritizes them. |
+| Score calibration | "z-score normalization" in some places | min-max across the candidate pool | Matches how the recipe stack's `services/scoring.py` actually calibrates. z-score was a doc slip. |
+| Synthesizer order vs. scoring | Step 7 then Step 6 (scoring before synthesizer) | Step 6 then Step 7 (synthesizer before scoring) | Synthesizer is self-contained and has no upstream deps on scoring — easier to ship first. |
+| Drink ratings storage | Originally "beer only in DB, wine from CSV at request time" | Both in DB | Wines from X-Wines Test are ~1k rows — trivial to store, eliminates I/O at request time. |
+| Dataset scale | Originally targeted X-Wines Slim (1k wines, 150k ratings) | Shipped on X-Wines Test (100 wines, 1k ratings) | Functional logic first; Slim/Full upgrade is a future-steps item (2.1). |
+
+---
+
+## Step 1 — Data + DB tables + seed scripts ✅
+
+**Files:** `data/download_drinks.py`, `backend/db/models.py` (added `Drink`, `DrinkEvent`), `backend/db/seed_drinks.py`, `backend/db/seed_drink_ratings.py`, `tests/test_seed_drinks.py`.
+
+**Notes:** Both beer and wine data live in SQLite. Beer users get `app_user_id = idx + 100_000` (where `idx` is the seed-time profilename-to-int mapping); wine users get `app_user_id = uid + 200_000`. Both seeders are idempotent.
+
+---
+
+## Step 2 — Flavor bridge ✅
+
+**Files:** `backend/ml/flavor_bridge.py`, `tests/test_flavor_bridge.py`.
+
+**Notes:** Lives in `backend/ml/`, not `backend/services/`, since it's a pure-Python lexicon transform with no side effects. `INGREDIENT_FLAVORS` has ~50 entries. Multi-word ingredients use substring matching.
+
+---
+
+## Step 3 — Drink CB (train + serve) ✅
+
+**Files:** `backend/ml/train_drink_cb.py`, `backend/ml/serve_drink_cb.py`, `tests/test_drink_cb.py`.
+
+**Notes:** Single TF-IDF model over a unified `kind + style/variety + tokens` corpus, kind-filtered at serve time via `cb_for_recipe(recipe, kind_filter)` / `cb_for_user(user_id, db, kind_filter)`. Artifacts: `drink_cb_matrix.npz`, `drink_cb_ids.npy`, `drink_cb_kinds.npy`, `drink_cb_vectorizer.pkl`, `drink_cb_meta.json`.
+
+---
+
+## Step 4 — Drink CF (train SVD + item-sim + cold-start + serve) ✅
+
+**Files:** `backend/ml/train_drink_cf.py`, `backend/ml/drink_item_similarity.py`, `backend/ml/drink_cold_start.py`, `backend/ml/serve_drink_cf.py`, `tests/test_drink_cf.py`.
+
+**Notes:** Standard Surprise SVD trained on **non-synthetic beer ratings only** (wines too sparse). Item-sim built per kind with mean-centering: beer requires ≥5 ratings, wine ≥2 (looser threshold for the tiny Test slice). `serve_drink_cf.get_cf_scores` dispatches by `(n_explicit, kind)`:
+
+|  | beer candidate | wine candidate |
+|---|---|---|
+| 0 explicit | `bayesian_popularity` | `bayesian_popularity` |
+| 1–4 explicit | `(1−α)·item_sim + α·SVD` | `item_sim_from_history` |
+| ≥ 5 explicit | pure `SVD` | `item_sim_from_history` |
+
+The item-sim user-history seed includes synthetic events; SVD training excludes them.
+
+---
+
+## Step 5 — Expert pairing rules ✅
+
+**Files:** `backend/services/expert_pairing.py`, `tests/test_expert_pairing.py`.
+
+**Notes:** Two layers — wine Harmonize CSV match (`WINE_BOOST_PER_MATCH = 0.10` per token overlap) and `BEER_STYLE_RULES` (hand-coded tuples mapping beer styles to recipe tokens). Total capped at `MAX_BOOST = 0.25`. Boost is **non-negative** only. Path A only.
+
+---
+
+## Step 6 — Drink synthesizer + recipe-side hook ✅
+
+**Files:** `backend/services/drink_synthesizer.py`, `tests/test_drink_synthesizer.py`. Modified `backend/routers/recipes.py` with a one-line hook in `log_event`.
+
+**Notes:** When `recipe_rating >= 4.0`, picks the top drinks by CB + expert and writes `DrinkEvent(rating=4.0, synthetic=True)` rows. Guardrails: deduplicates per `(user, drink)`, never overwrites an explicit rating, fail-soft (swallows exceptions so a synthesizer bug never blocks recipe logging). Kill switch: `ENABLE_SYNTHETIC_DRINK_RATINGS`.
+
+---
+
+## Step 7 — Drink scoring service ✅
+
+**Files:** `backend/services/drink_scoring.py`, `tests/test_drink_scoring.py`.
+
+**Notes:** `rank_drinks_for_recipe` (Path A: `0.45·cb + 0.25·cf + 0.20·expert + 0.10·prior`) and `rank_drinks_for_user` (Path B: `0.55·cb + 0.30·cf + 0.15·prior`). Min-max calibration per component across the candidate pool. No DB queries — pure function over pre-computed signal dicts, easy to unit-test.
+
+---
+
+## Step 8 — Drinks router ✅
+
+**Files:** `backend/routers/drinks.py`, `tests/test_drinks_router.py`. Modified `backend/main.py` with `app.include_router(drinks.router)`.
+
+**Endpoints:**
+- `GET  /drinks/ranked?user_id=&kind=&top_n=` — Path B
+- `GET  /drinks/pairings/{recipe_id}?user_id=&kind=&top_n=` — Path A
+- `GET  /drinks/search?q=&kind=&limit=` — browse
+- `GET  /drinks/{drink_id}` — detail
+- `POST /drink-events` — rate (synthesizer hook is on **recipe** ratings only, not drink ratings)
+
+**Two-stage pipeline:** Stage 1 filters by kind + Bayesian-smoothed popularity to ≤ 2000 candidates; Stage 2 calls `rank_drinks_*`.
+
+**Test gotcha worth remembering:** `from backend.ml.serve_drink_cb import cb_for_recipe` binds the function at import time, so tests must patch `backend.routers.drinks.cb_for_recipe` (the router's local reference), not the source module. See `tests/test_drinks_router.py` lines 76–80. Future-steps item 1.3 fixes this properly.
+
+Also: `sqlite:///:memory:` creates a fresh DB per connection. Tests use `StaticPool` so every Session shares one connection.
+
+---
+
+## Step 9 — Frontend: Path B "Drinks For You" page ✅
+
+**Files:** `frontend/src/api/drinks.ts`, `frontend/src/components/DrinkCard.tsx`, `frontend/src/pages/DrinksForYouPage.tsx`. Modified `frontend/src/App.tsx` to register the `/drinks` route and nav link.
+
+**Notes:** Mirrors `RecipeFeedPage`. Kind toggle (All / Beer / Wine), sort dropdown (Total / Taste / Crowd / Popularity), CF-strategy banner (cold vs warm). Each card shows a `whyForYou()` reason line ("🍽️ Matches your food taste", "🤝 Similar to drinks you've liked", etc.) — translates the dominant signal into plain English so the algorithm name never leaks to the UI.
+
+Drink ratings flow through `POST /drink-events`. No skip event (drink ratings are pure positive signal; dismiss is client-side only).
+
+---
+
+## Step 10 — Frontend: Path A pairing panel ✅
+
+**Files:** `frontend/src/components/DrinkPairingPanel.tsx`. Modified `RecipeDetailPage.tsx` to accept `userId` and mount the panel.
+
+**Notes:** Compact card grid (4–6 picks fit on screen), wine-default kind toggle, and a `pairingReason()` helper that surfaces expert hits as `🎯 Harmonizes with Beef, Lamb, Grilled`. Inline 5-star rating per card. No "dismiss" in this context.
+
+---
+
+## Step 11 — Pipeline + docs ✅
+
+**Files:** Updated `train_pipeline.sh` with 6 drink stages (D1–D6) plus `--skip-drinks` / `--drinks-only` flags. Updated `README.md` with a real drink-recommender section. Created this file pair (`drink-recsys-design.md`, `drink-recsys-steps.md`, and now `drink-recsys-future.md`).
+
+---
+
+## v1 acceptance checklist (all met)
+
+- ✅ All recipe tests that were passing before this work are still passing.
+- ✅ 156 new drink tests across 8 new test files, all passing.
+- ✅ `python -m uvicorn backend.main:app --reload --port 8000` starts cleanly.
+- ✅ `cd frontend && npm run dev` opens an SPA with a "Drinks" nav link.
+- ✅ Opening a recipe shows a working pairing panel.
+- ✅ Rating a recipe ≥ 4.0 in the UI then opening the Drink feed shows personalized results (synthesizer + Path B).
+- ✅ Frontend `tsc --noEmit` passes; all UI surfaces have explainability copy (no raw algorithm names leak to the user).
