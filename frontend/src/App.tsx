@@ -8,6 +8,7 @@ import { ProfilePage }        from './pages/ProfilePage'
 import { BrowsePage }         from './pages/BrowsePage'
 import { RecipeDetailPage }   from './pages/RecipeDetailPage'
 import { ShoppingListPage }   from './pages/ShoppingListPage'
+import { DrinksForYouPage }   from './pages/DrinksForYouPage'
 import { getUser } from './api/client'
 import './index.css'
 
@@ -40,6 +41,7 @@ export default function App() {
             <NavLink to="/pantry"   className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Pantry</NavLink>
             <NavLink to="/feed"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Recipes</NavLink>
             <NavLink to="/browse"   className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Browse</NavLink>
+            <NavLink to="/drinks"   className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Drinks</NavLink>
             <NavLink to="/list"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>List</NavLink>
             <NavLink to="/profile"  className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Profile</NavLink>
           </div>
@@ -50,9 +52,10 @@ export default function App() {
           <Route path="/pantry"        element={<PantryPage      userId={userId} />} />
           <Route path="/feed"          element={<RecipeFeedPage  userId={userId} />} />
           <Route path="/browse"        element={<BrowsePage      userId={userId} />} />
+          <Route path="/drinks"        element={<DrinksForYouPage userId={userId} />} />
           <Route path="/profile"       element={<ProfilePage     userId={userId} />} />
           <Route path="/list"          element={<ShoppingListPage userId={userId} />} />
-          <Route path="/recipe/:id"    element={<RecipeDetailPage />} />
+          <Route path="/recipe/:id"    element={<RecipeDetailPage userId={userId} />} />
         </Routes>
       </div>
     </BrowserRouter>
