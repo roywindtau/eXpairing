@@ -4,7 +4,7 @@ seed_drink_ratings.py
 Loads beer + wine rating events into DrinkEvent, and creates a User row per
 unique external user (mirrors seed_ratings.py for Food.com).
 
-Expected inputs (download via data/download_drinks.py):
+Expected inputs (download via data/drinks/download.py):
     data/beer_reviews.csv     -- ~1.58M rows; user = review_profilename (string)
     data/xwines_ratings.csv   -- ~1k rows;    user = UserID (int)
 

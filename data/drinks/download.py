@@ -32,7 +32,7 @@ Requirements:
         https://www.kaggle.com/datasets/rdoume/beerreviews
 
 Run:
-    python data/download_drinks.py
+    python -m data.drinks.download
 
 Output files:
     data/beer_reviews.csv     ~150MB, ~1.5M rows

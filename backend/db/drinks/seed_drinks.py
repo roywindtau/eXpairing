@@ -3,7 +3,7 @@ seed_drinks.py
 --------------
 Loads the drink datasets into the Drink table.
 
-Expected input files (download via data/download_drinks.py):
+Expected input files (download via data/drinks/download.py):
     data/beer_reviews.csv     -- ~1.58M BeerAdvocate reviews; we group by beer
     data/xwines_wines.csv     -- ~100 wine metadata rows (X-Wines Test)
 
@@ -12,7 +12,7 @@ Per-beer aggregates computed during seed:
     review_tokens_csv: top-N most-frequent non-stopword words from this beer's
                       review text (used by train_drink_cb.py)
 
-Run AFTER data/download_drinks.py:
+Run AFTER data/drinks/download.py:
     python -m backend.db.drinks.seed_drinks [--limit 5000]
 """
 
