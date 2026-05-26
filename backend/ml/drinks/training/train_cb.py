@@ -28,7 +28,7 @@ Saved artifacts
     models/drink_cb_meta.json        training stats
 
 Run:
-    python -m backend.ml.train_drink_cb
+    python -m backend.ml.drinks.training.train_cb
 """
 
 from __future__ import annotations

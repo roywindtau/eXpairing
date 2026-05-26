@@ -126,15 +126,15 @@ if [ "$SKIP_DRINKS" -eq 0 ]; then
     echo ""
 
     echo "[D4/6] Training drink CB (TF-IDF + flavor bridge)..."
-    python -m backend.ml.train_drink_cb
+    python -m backend.ml.drinks.training.train_cb
     echo ""
 
     echo "[D5/6] Training drink CF SVD (beers only — wines too sparse)..."
-    python -m backend.ml.train_drink_cf
+    python -m backend.ml.drinks.training.train_cf
     echo ""
 
     echo "[D6/6] Building drink item-similarity matrices..."
-    python -m backend.ml.drink_item_similarity
+    python -m backend.ml.drinks.training.item_similarity
     echo ""
 
 else

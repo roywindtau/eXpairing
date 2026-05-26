@@ -25,7 +25,7 @@ Saved artifacts
     models/drink_cf_meta.json    RMSE/MAE + hyperparams + timestamp
 
 Run:
-    python -m backend.ml.train_drink_cf [--n-factors 30] [--n-epochs 15]
+    python -m backend.ml.drinks.training.train_cf [--n-factors 30] [--n-epochs 15]
 """
 
 from __future__ import annotations

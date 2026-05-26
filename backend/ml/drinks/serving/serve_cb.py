@@ -37,7 +37,7 @@ import numpy as np
 import scipy.sparse as sp
 from sklearn.metrics.pairwise import cosine_similarity
 
-from backend.ml.flavor_bridge import bridge_recipe_doc
+from backend.ml.drinks.serving.flavor_bridge import bridge_recipe_doc
 
 CB_MATRIX_PATH     = Path("models/drink_cb_matrix.npz")
 CB_IDS_PATH        = Path("models/drink_cb_ids.npy")

@@ -36,7 +36,7 @@ from typing import Iterable, Optional
 import numpy as np
 import scipy.sparse as sp
 
-from backend.ml.drink_cold_start import bayesian_popularity, item_sim_seed_scores
+from backend.ml.drinks.serving.cold_start import bayesian_popularity, item_sim_seed_scores
 
 CF_MODEL_PATH    = Path("models/drink_cf_model.pkl")
 SIM_BEER_PATH    = Path("models/drink_sim_beer.npz")
