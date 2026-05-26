@@ -1,25 +1,26 @@
 """
 seed_drinks.py
 --------------
-Loads the drink datasets into the Drink table.
+Loads the beer dataset into the Drink table.
 
-Expected input files (download via data/drinks/download.py):
+Expected input file (download via data/drinks/download_beer.py):
     data/beer_reviews.csv     -- ~1.58M BeerAdvocate reviews; we group by beer
-    data/xwines_wines.csv     -- ~100 wine metadata rows (X-Wines Test)
 
 Per-beer aggregates computed during seed:
     avg_rating, n_ratings, avg_aroma/taste/palate/appearance
     review_tokens_csv: top-N most-frequent non-stopword words from this beer's
-                      review text (used by train_drink_cb.py)
+                      review text (used by train_cb.py)
 
-Run AFTER data/drinks/download.py:
+Wines are intentionally not seeded here yet — the wine-data branch is
+choosing the new source(s). See data/drinks/download_wines.py.
+
+Run AFTER data/drinks/download_beer.py:
     python -m backend.db.drinks.seed_drinks [--limit 5000]
 """
 
 from __future__ import annotations
 
 import argparse
-import ast
 import csv
 import re
 import sys
@@ -32,7 +33,6 @@ from backend.db.database import init_db, SessionLocal
 from backend.db.models import Drink
 
 BEER_CSV  = Path("data/beer_reviews.csv")
-WINE_CSV  = Path("data/xwines_wines.csv")
 BATCH_SIZE = 5_000
 TOP_REVIEW_TOKENS = 25
 
@@ -75,15 +75,6 @@ def _safe_float(s: str) -> float | None:
         return v if v == v else None  # filter NaN
     except (ValueError, TypeError):
         return None
-
-
-def _parse_python_list(raw: str) -> list[str]:
-    """X-Wines stores lists as Python literals: "['Beef', 'Lamb']"."""
-    try:
-        result = ast.literal_eval(raw)
-        return [str(x).strip() for x in result if str(x).strip()]
-    except Exception:
-        return []
 
 
 # ── beer seeding ─────────────────────────────────────────────────────────
@@ -187,63 +178,6 @@ def _seed_beers(db, limit: int) -> int:
     return total
 
 
-# ── wine seeding ─────────────────────────────────────────────────────────
-
-# X-Wines uses these wine_type values; we keep them as-is (case preserved).
-WINE_TYPES = {"Red", "White", "Rose", "Rosé", "Sparkling", "Dessert", "Dessert/Port"}
-
-
-def _seed_wines(db) -> int:
-    """Read xwines_wines.csv (~100 rows) and insert one Drink per wine."""
-    if not WINE_CSV.exists():
-        print(f"  WARN: {WINE_CSV} not found, skipping wine seed.")
-        return 0
-
-    print(f"  Reading {WINE_CSV} ...")
-    batch: list[Drink] = []
-    total = 0
-    with open(WINE_CSV, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            try:
-                wine_id = int(row["WineID"])
-            except (ValueError, KeyError):
-                continue
-
-            harmonize = _parse_python_list(row.get("Harmonize", "[]"))
-            grapes    = _parse_python_list(row.get("Grapes",    "[]"))
-
-            review_tokens = list(dict.fromkeys(
-                _tokenize(" ".join(harmonize + grapes + [row.get("WineName", "")]))
-            ))[:TOP_REVIEW_TOKENS]
-
-            batch.append(Drink(
-                id=wine_id,
-                kind="wine",
-                name=(row.get("WineName") or "").strip() or f"Wine {wine_id}",
-                producer=(row.get("WineryName") or "").strip() or None,
-                country=(row.get("Country") or "").strip() or None,
-                abv=_safe_float(row.get("ABV", "")),
-                avg_rating=None,   # filled in by seed_drink_ratings.py
-                n_ratings=0,
-                review_tokens_csv=",".join(review_tokens) if review_tokens else None,
-                wine_type=(row.get("Type") or "").strip() or None,
-                variety=grapes[0] if grapes else None,
-                grapes_csv=",".join(grapes) if grapes else None,
-                region=(row.get("RegionName") or "").strip() or None,
-                body=(row.get("Body") or "").strip() or None,
-                acidity=(row.get("Acidity") or "").strip() or None,
-                harmonize_csv=",".join(harmonize) if harmonize else None,
-            ))
-            total += 1
-
-    if batch:
-        db.bulk_save_objects(batch)
-        db.commit()
-    print(f"  Inserted {total} wines.")
-    return total
-
-
 # ── entrypoint ───────────────────────────────────────────────────────────
 
 def seed(limit: int = 0) -> None:
@@ -260,10 +194,7 @@ def seed(limit: int = 0) -> None:
         print("Seeding beers ...")
         n_beers = _seed_beers(db, limit)
 
-        print("Seeding wines ...")
-        n_wines = _seed_wines(db)
-
-        print(f"\nDone. {n_beers:,} beers + {n_wines:,} wines = {n_beers + n_wines:,} drinks.")
+        print(f"\nDone. {n_beers:,} beers.")
 
     finally:
         db.close()
@@ -272,6 +203,6 @@ def seed(limit: int = 0) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=0,
-                        help="Max beer review rows to read (0 = all). Wines are always fully loaded.")
+                        help="Max beer review rows to read (0 = all).")
     args = parser.parse_args()
     seed(limit=args.limit)

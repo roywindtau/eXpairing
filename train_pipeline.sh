@@ -109,11 +109,11 @@ if [ "$SKIP_DRINKS" -eq 0 ]; then
     echo "========================================"
     echo ""
 
-    if [ ! -f "data/beer_reviews.csv" ] || [ ! -f "data/xwines_wines.csv" ]; then
-        echo "[D1/6] Downloading drink datasets (Beer Reviews + X-Wines Test)..."
-        python -m data.drinks.download
+    if [ ! -f "data/beer_reviews.csv" ]; then
+        echo "[D1/6] Downloading beer dataset (Beer Reviews)..."
+        python -m data.drinks.download_beer
     else
-        echo "[D1/6] Drink datasets already present — skipping download."
+        echo "[D1/6] Beer dataset already present — skipping download."
     fi
     echo ""
 

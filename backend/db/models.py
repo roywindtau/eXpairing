@@ -121,7 +121,8 @@ class Drink(Base):
     """
     Unified beer + wine catalog, discriminated by `kind`.
     Beer-specific and wine-specific columns are nullable.
-    Seeded from data/beer_reviews.csv and data/xwines_wines.csv.
+    Seeded from data/beer_reviews.csv. Wine seeding is pending the
+    wine-data branch's dataset choice.
     """
     __tablename__ = "drinks"
 
