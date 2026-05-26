@@ -21,7 +21,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.db.models import Base, Drink, DrinkEvent, Recipe, User
-from backend.services import drink_synthesizer
+from backend.services.drinks import synthesizer as drink_synthesizer
 
 
 # ── fixture data ─────────────────────────────────────────────────────────

@@ -154,7 +154,7 @@ def maybe_synthesize_on_recipe_rating(
     try:
         # Local imports keep the synthesizer cheap to import (no heavy
         # ML deps unless this function actually fires).
-        from backend.services.expert_pairing import expert_boost_batch
+        from backend.services.drinks.expert_pairing import expert_boost_batch
 
         recipe = db.get(Recipe, recipe_id)
         if recipe is None:

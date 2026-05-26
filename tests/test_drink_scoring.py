@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pytest
 
-from backend.services.drink_scoring import (
+from backend.services.drinks.scoring import (
     DrinkScore,
     WEIGHTS_PATH_A,
     WEIGHTS_PATH_B,
