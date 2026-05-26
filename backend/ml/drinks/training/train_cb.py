@@ -113,7 +113,7 @@ def train() -> None:
 
     ids, kinds, documents = load_drinks()
     if not ids:
-        print("No drinks found. Run `python -m backend.db.seed_drinks` first.")
+        print("No drinks found. Run `python -m backend.db.drinks.seed_drinks` first.")
         sys.exit(1)
 
     # Match recipe CB conventions for parity: same ngram range, same

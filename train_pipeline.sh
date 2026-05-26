@@ -118,11 +118,11 @@ if [ "$SKIP_DRINKS" -eq 0 ]; then
     echo ""
 
     echo "[D2/6] Seeding Drink table (beers + wines)..."
-    python -m backend.db.seed_drinks
+    python -m backend.db.drinks.seed_drinks
     echo ""
 
     echo "[D3/6] Seeding DrinkEvent table (beer + wine ratings)..."
-    python -m backend.db.seed_drink_ratings
+    python -m backend.db.drinks.seed_ratings
     echo ""
 
     echo "[D4/6] Training drink CB (TF-IDF + flavor bridge)..."

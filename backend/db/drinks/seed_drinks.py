@@ -13,7 +13,7 @@ Per-beer aggregates computed during seed:
                       review text (used by train_drink_cb.py)
 
 Run AFTER data/download_drinks.py:
-    python -m backend.db.seed_drinks [--limit 5000]
+    python -m backend.db.drinks.seed_drinks [--limit 5000]
 """
 
 from __future__ import annotations

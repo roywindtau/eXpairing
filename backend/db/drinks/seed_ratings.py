@@ -14,7 +14,7 @@ User ID mapping (offsets chosen to avoid clashes with other domains):
     Wine (this file):            xwines_user_id + 200_000
 
 Run AFTER seed_drinks.py:
-    python -m backend.db.seed_drink_ratings [--limit 200000]
+    python -m backend.db.drinks.seed_ratings [--limit 200000]
 """
 
 from __future__ import annotations
@@ -232,7 +232,7 @@ def seed(limit: int = 0) -> None:
         print(f"  {len(valid_beer_ids):,} beers, {len(valid_wine_ids):,} wines.")
 
         if not valid_beer_ids and not valid_wine_ids:
-            print("No drinks in DB. Run `python -m backend.db.seed_drinks` first.")
+            print("No drinks in DB. Run `python -m backend.db.drinks.seed_drinks` first.")
             sys.exit(1)
 
         print("\nSeeding beer events ...")
