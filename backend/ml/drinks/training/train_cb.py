@@ -28,7 +28,7 @@ Saved artifacts
     models/drink_cb_meta.json        training stats
 
 Run:
-    python -m backend.ml.train_drink_cb
+    python -m backend.ml.drinks.training.train_cb
 """
 
 from __future__ import annotations
@@ -113,7 +113,7 @@ def train() -> None:
 
     ids, kinds, documents = load_drinks()
     if not ids:
-        print("No drinks found. Run `python -m backend.db.seed_drinks` first.")
+        print("No drinks found. Run `python -m backend.db.drinks.seed_drinks` first.")
         sys.exit(1)
 
     # Match recipe CB conventions for parity: same ngram range, same

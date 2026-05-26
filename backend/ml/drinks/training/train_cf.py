@@ -25,7 +25,7 @@ Saved artifacts
     models/drink_cf_meta.json    RMSE/MAE + hyperparams + timestamp
 
 Run:
-    python -m backend.ml.train_drink_cf [--n-factors 30] [--n-epochs 15]
+    python -m backend.ml.drinks.training.train_cf [--n-factors 30] [--n-epochs 15]
 """
 
 from __future__ import annotations
@@ -98,7 +98,7 @@ def train(n_factors: int = 30, n_epochs: int = 15) -> None:
 
     df = load_beer_ratings()
     if len(df) == 0:
-        print("No beer ratings found. Run `python -m backend.db.seed_drink_ratings` first.")
+        print("No beer ratings found. Run `python -m backend.db.drinks.seed_ratings` first.")
         sys.exit(1)
 
     df = filter_active_users(df, MIN_RATINGS_PER_USER)

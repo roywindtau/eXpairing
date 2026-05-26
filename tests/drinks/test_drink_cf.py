@@ -14,7 +14,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
 import pytest
@@ -23,12 +23,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.db.models import Base, Drink, DrinkEvent, User
-from backend.ml import (
-    drink_cold_start,
-    drink_item_similarity,
-    serve_drink_cf,
-    train_drink_cf,
-)
+from backend.ml.drinks.serving import cold_start as drink_cold_start
+from backend.ml.drinks.training import item_similarity as drink_item_similarity
+from backend.ml.drinks.serving import serve_cf as serve_drink_cf
+from backend.ml.drinks.training import train_cf as train_drink_cf
 
 
 # ── fixture data ─────────────────────────────────────────────────────────

@@ -35,14 +35,14 @@ from sqlalchemy.orm import Session
 
 from backend.db.database import get_db
 from backend.db.models import Drink, DrinkEvent, Recipe, User
-from backend.ml.serve_drink_cb import cb_for_recipe, cb_for_user, model_available as cb_available
-from backend.ml.serve_drink_cf import cf_strategy_name, get_cf_scores
-from backend.services.drink_scoring import (
+from backend.ml.drinks.serving.serve_cb import cb_for_recipe, cb_for_user, model_available as cb_available
+from backend.ml.drinks.serving.serve_cf import cf_strategy_name, get_cf_scores
+from backend.services.drinks.scoring import (
     DrinkScore,
     rank_drinks_for_recipe,
     rank_drinks_for_user,
 )
-from backend.services.expert_pairing import expert_boost_batch
+from backend.services.drinks.expert_pairing import expert_boost_batch
 
 router = APIRouter(tags=["drinks"])
 

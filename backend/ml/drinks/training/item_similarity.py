@@ -25,7 +25,7 @@ Saved artifacts
     models/drink_sim_meta.json      counts + thresholds + timestamp
 
 Run:
-    python -m backend.ml.drink_item_similarity
+    python -m backend.ml.drinks.training.item_similarity
 """
 
 from __future__ import annotations

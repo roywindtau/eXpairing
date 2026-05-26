@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from backend.ml.flavor_bridge import bridge_recipe_doc
+from backend.ml.drinks.serving.flavor_bridge import bridge_recipe_doc
 
 # ── tunable constants ───────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@ seed_drink_ratings.py
 Loads beer + wine rating events into DrinkEvent, and creates a User row per
 unique external user (mirrors seed_ratings.py for Food.com).
 
-Expected inputs (download via data/download_drinks.py):
+Expected inputs (download via data/drinks/download.py):
     data/beer_reviews.csv     -- ~1.58M rows; user = review_profilename (string)
     data/xwines_ratings.csv   -- ~1k rows;    user = UserID (int)
 
@@ -14,7 +14,7 @@ User ID mapping (offsets chosen to avoid clashes with other domains):
     Wine (this file):            xwines_user_id + 200_000
 
 Run AFTER seed_drinks.py:
-    python -m backend.db.seed_drink_ratings [--limit 200000]
+    python -m backend.db.drinks.seed_ratings [--limit 200000]
 """
 
 from __future__ import annotations
@@ -232,7 +232,7 @@ def seed(limit: int = 0) -> None:
         print(f"  {len(valid_beer_ids):,} beers, {len(valid_wine_ids):,} wines.")
 
         if not valid_beer_ids and not valid_wine_ids:
-            print("No drinks in DB. Run `python -m backend.db.seed_drinks` first.")
+            print("No drinks in DB. Run `python -m backend.db.drinks.seed_drinks` first.")
             sys.exit(1)
 
         print("\nSeeding beer events ...")

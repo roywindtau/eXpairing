@@ -32,7 +32,7 @@ Requirements:
         https://www.kaggle.com/datasets/rdoume/beerreviews
 
 Run:
-    python data/download_drinks.py
+    python -m data.drinks.download
 
 Output files:
     data/beer_reviews.csv     ~150MB, ~1.5M rows
@@ -127,11 +127,11 @@ def report():
             print(f"  MISSING: {path}")
 
     print("\nNext steps (run from recsys26/):")
-    print("  python -m backend.db.seed_drinks         # ~66k beer + 100 wine rows")
-    print("  python -m backend.db.seed_drink_ratings  # ~1.5M beer + 1k wine ratings")
-    print("  python -m backend.ml.train_drink_cb      # TF-IDF over drink text")
-    print("  python -m backend.ml.train_drink_cf      # Surprise SVD on beer ratings")
-    print("  python -m backend.ml.drink_item_similarity  # per-kind item-item sim")
+    print("  python -m backend.db.drinks.seed_drinks   # ~66k beer + 100 wine rows")
+    print("  python -m backend.db.drinks.seed_ratings  # ~1.5M beer + 1k wine ratings")
+    print("  python -m backend.ml.drinks.training.train_cb        # TF-IDF over drink text")
+    print("  python -m backend.ml.drinks.training.train_cf        # Surprise SVD on beer ratings")
+    print("  python -m backend.ml.drinks.training.item_similarity # per-kind item-item sim")
 
 
 def main():

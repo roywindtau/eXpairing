@@ -49,7 +49,7 @@ from sqlalchemy.orm import Session
 from backend.db.database import get_db
 from backend.db.models import User, PantryItem, Recipe, UserEvent
 from backend.services.scoring import rank_recipes, RecipeScore
-from backend.services.drink_synthesizer import maybe_synthesize_on_recipe_rating
+from backend.services.drinks.synthesizer import maybe_synthesize_on_recipe_rating
 from backend.ml.serve_cf import (
     get_cf_scores, cf_strategy_name, is_warm_user,
     svd_available, item_sim_available, MIN_RATINGS_FOR_CF,

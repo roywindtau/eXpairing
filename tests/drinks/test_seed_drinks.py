@@ -13,13 +13,14 @@ import sys
 from pathlib import Path
 
 # allow `import backend.*`
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.db import seed_drinks, seed_drink_ratings
+from backend.db.drinks import seed_drinks
+from backend.db.drinks import seed_ratings as seed_drink_ratings
 from backend.db.models import Base, Drink, DrinkEvent, User
 
 

@@ -17,7 +17,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
 from fastapi.testclient import TestClient
@@ -92,7 +92,7 @@ def client(monkeypatch):
     app.dependency_overrides[get_db] = _override_get_db
 
     # Stub CB module so we don't need trained artifacts.
-    # NOTE: the router does `from backend.ml.serve_drink_cb import cb_for_recipe`
+    # NOTE: the router does `from backend.ml.drinks.serving.serve_cb import cb_for_recipe`
     # which binds the function at import time, so we patch the ROUTER's local
     # reference (`backend.routers.drinks.cb_for_recipe`) — patching the source
     # module wouldn't affect the already-imported binding.

@@ -111,30 +111,30 @@ if [ "$SKIP_DRINKS" -eq 0 ]; then
 
     if [ ! -f "data/beer_reviews.csv" ] || [ ! -f "data/xwines_wines.csv" ]; then
         echo "[D1/6] Downloading drink datasets (Beer Reviews + X-Wines Test)..."
-        python -m data.download_drinks
+        python -m data.drinks.download
     else
         echo "[D1/6] Drink datasets already present — skipping download."
     fi
     echo ""
 
     echo "[D2/6] Seeding Drink table (beers + wines)..."
-    python -m backend.db.seed_drinks
+    python -m backend.db.drinks.seed_drinks
     echo ""
 
     echo "[D3/6] Seeding DrinkEvent table (beer + wine ratings)..."
-    python -m backend.db.seed_drink_ratings
+    python -m backend.db.drinks.seed_ratings
     echo ""
 
     echo "[D4/6] Training drink CB (TF-IDF + flavor bridge)..."
-    python -m backend.ml.train_drink_cb
+    python -m backend.ml.drinks.training.train_cb
     echo ""
 
     echo "[D5/6] Training drink CF SVD (beers only — wines too sparse)..."
-    python -m backend.ml.train_drink_cf
+    python -m backend.ml.drinks.training.train_cf
     echo ""
 
     echo "[D6/6] Building drink item-similarity matrices..."
-    python -m backend.ml.drink_item_similarity
+    python -m backend.ml.drinks.training.item_similarity
     echo ""
 
 else

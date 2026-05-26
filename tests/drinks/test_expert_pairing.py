@@ -13,9 +13,9 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from backend.services.expert_pairing import (
+from backend.services.drinks.expert_pairing import (
     BEER_STYLE_RULES,
     MAX_BOOST,
     WINE_BOOST_PER_MATCH,

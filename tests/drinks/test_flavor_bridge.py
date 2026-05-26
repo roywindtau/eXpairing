@@ -18,9 +18,9 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from backend.ml.flavor_bridge import (
+from backend.ml.drinks.serving.flavor_bridge import (
     INGREDIENT_FLAVORS,
     bridge_ingredients,
     bridge_recipe_doc,
