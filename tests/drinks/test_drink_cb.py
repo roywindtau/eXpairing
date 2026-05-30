@@ -24,7 +24,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.db.models import Base, Drink, Recipe, User, UserEvent
+from backend.db.models import Base, Beer, Wine, Recipe, User, UserEvent
 from backend.ml.drinks.serving import serve_cb as serve_drink_cb
 from backend.ml.drinks.training import train_cb as train_drink_cb
 
@@ -34,28 +34,25 @@ from backend.ml.drinks.training import train_cb as train_drink_cb
 def _seed_fixture(db):
     db.add_all([
         # Wines
-        Drink(id=1, kind="wine", name="Estate Malbec", wine_type="Red",
-              variety="Malbec", grapes_csv="Malbec",
-              harmonize_csv="Beef,Lamb,Grilled",
-              body="Full-bodied", acidity="Medium",
-              review_tokens_csv="beef,lamb,grilled,malbec"),
-        Drink(id=2, kind="wine", name="Coastal Sauvignon", wine_type="White",
-              variety="Sauvignon Blanc", grapes_csv="Sauvignon Blanc",
-              harmonize_csv="Fish,Seafood,Salads",
-              body="Light-bodied", acidity="High",
-              review_tokens_csv="fish,seafood,salads,sauvignon"),
-        Drink(id=3, kind="wine", name="Sparkling Bubbly", wine_type="Sparkling",
-              variety="Chardonnay", grapes_csv="Chardonnay",
-              harmonize_csv="Appetizer,Cheese",
-              body="Light-bodied", acidity="High",
-              review_tokens_csv="appetizer,cheese,sparkling"),
+        Wine(id=1, name="Estate Malbec", style="Red",
+             grapes_csv="Malbec", harmonize_csv="Beef,Lamb,Grilled",
+             body="Full-bodied", acidity="Medium",
+             review_tokens_csv="beef,lamb,grilled,malbec"),
+        Wine(id=2, name="Coastal Sauvignon", style="White",
+             grapes_csv="Sauvignon Blanc", harmonize_csv="Fish,Seafood,Salads",
+             body="Light-bodied", acidity="High",
+             review_tokens_csv="fish,seafood,salads,sauvignon"),
+        Wine(id=3, name="Sparkling Bubbly", style="Sparkling",
+             grapes_csv="Chardonnay", harmonize_csv="Appetizer,Cheese",
+             body="Light-bodied", acidity="High",
+             review_tokens_csv="appetizer,cheese,sparkling"),
         # Beers
-        Drink(id=101, kind="beer", name="Hop Bomb", style="IPA",
-              review_tokens_csv="ipa"),
-        Drink(id=102, kind="beer", name="Dark Velvet", style="Stout",
-              review_tokens_csv="stout"),
-        Drink(id=103, kind="beer", name="Crisp Light", style="Pilsner",
-              review_tokens_csv="pilsner"),
+        Beer(id=101, name="Hop Bomb", style="IPA",
+             review_tokens_csv="ipa"),
+        Beer(id=102, name="Dark Velvet", style="Stout",
+             review_tokens_csv="stout"),
+        Beer(id=103, name="Crisp Light", style="Pilsner",
+             review_tokens_csv="pilsner"),
         # Recipes (used by cb_for_user)
         Recipe(id=1001, name="Grilled Ribeye", ingredients_csv="beef,steak,garlic,butter",
                tags_csv="american,bbq"),

@@ -20,7 +20,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.db.models import Base, Drink, DrinkEvent, Recipe, User
+from backend.db.models import Base, Beer, Wine, DrinkEvent, Recipe, User
 from backend.services.drinks import synthesizer as drink_synthesizer
 
 
@@ -29,22 +29,22 @@ from backend.services.drinks import synthesizer as drink_synthesizer
 def _seed(db):
     db.add_all([
         # Wines that should match a beef recipe via Harmonize
-        Drink(id=1, kind="wine", name="Beef Wine",   wine_type="Red",
-              variety="Malbec", harmonize_csv="Beef,Lamb,Grilled",
-              avg_rating=4.2, n_ratings=20),
-        Drink(id=2, kind="wine", name="Fish Wine",   wine_type="White",
-              variety="Sauv Blanc", harmonize_csv="Fish,Seafood",
-              avg_rating=3.9, n_ratings=15),
-        Drink(id=3, kind="wine", name="Random Wine", wine_type="Sparkling",
-              variety="Chardonnay", harmonize_csv="Appetizer",
-              avg_rating=4.0, n_ratings=10),
+        Wine(id=1, name="Beef Wine",   style="Red",
+             grapes_csv="Malbec", harmonize_csv="Beef,Lamb,Grilled",
+             avg_rating=4.2, n_ratings=20),
+        Wine(id=2, name="Fish Wine",   style="White",
+             grapes_csv="Sauv Blanc", harmonize_csv="Fish,Seafood",
+             avg_rating=3.9, n_ratings=15),
+        Wine(id=3, name="Random Wine", style="Sparkling",
+             grapes_csv="Chardonnay", harmonize_csv="Appetizer",
+             avg_rating=4.0, n_ratings=10),
         # Beers (stout matches chocolate, IPA matches spicy, pilsner matches nothing)
-        Drink(id=101, kind="beer", name="Big Stout",    style="Russian Imperial Stout",
-              avg_rating=4.3, n_ratings=200),
-        Drink(id=102, kind="beer", name="Hop Punch IPA", style="American IPA",
-              avg_rating=4.1, n_ratings=150),
-        Drink(id=103, kind="beer", name="Light Lager",   style="Pilsner",
-              avg_rating=3.5, n_ratings=80),
+        Beer(id=101, name="Big Stout",    style="Russian Imperial Stout",
+             avg_rating=4.3, n_ratings=200),
+        Beer(id=102, name="Hop Punch IPA", style="American IPA",
+             avg_rating=4.1, n_ratings=150),
+        Beer(id=103, name="Light Lager",   style="Pilsner",
+             avg_rating=3.5, n_ratings=80),
         # Recipes
         Recipe(id=1001, name="Beef Stew", ingredients_csv="beef,onion,garlic,potato",
                tags_csv="american,beef"),
@@ -69,7 +69,7 @@ def db_session(monkeypatch):
 
     # Stub out the CB module so we don't need trained artifacts.
     # Each test can re-patch with its own canned scores if needed.
-    from backend.ml import serve_drink_cb
+    from backend.ml.drinks.serving import serve_cb as serve_drink_cb
 
     def fake_model_available():
         return True
@@ -227,7 +227,7 @@ def test_different_users_get_independent_history(db_session):
 
 def test_synthesizer_swallows_exceptions(db_session, monkeypatch):
     """A bug in CB or expert_pairing must not break the caller."""
-    from backend.ml import serve_drink_cb
+    from backend.ml.drinks.serving import serve_cb as serve_drink_cb
 
     def crash(*args, **kwargs):
         raise RuntimeError("boom")
@@ -245,7 +245,7 @@ def test_synthesizer_swallows_exceptions(db_session, monkeypatch):
 
 def test_falls_back_to_popularity_when_cb_unavailable(db_session, monkeypatch):
     """No CB model → still synthesizes top-popularity candidates."""
-    from backend.ml import serve_drink_cb
+    from backend.ml.drinks.serving import serve_cb as serve_drink_cb
 
     monkeypatch.setattr(serve_drink_cb, "model_available", lambda: False)
 
