@@ -78,6 +78,21 @@ def clean_wines(df: pd.DataFrame) -> pd.DataFrame:
         "Vintages",             # not used in recommendations
     ])
 
+    # Rename to canonical names shared with clean_beer.csv
+    df = df.rename(columns={
+        "WineID":     "id",
+        "WineName":   "name",
+        "WineryName": "producer",
+        "Type":       "style",
+        "ABV":        "abv",
+        "Harmonize":  "harmonize_csv",
+        "Grapes":     "grapes_csv",
+        "Body":       "body",
+        "Acidity":    "acidity",
+        "Country":    "country",
+        "RegionName": "region",
+    })
+
     return df
 
 
@@ -144,16 +159,16 @@ def validate(wines: pd.DataFrame, ratings: pd.DataFrame) -> None:
     Validation is not optional — cleaning code has bugs like any code.
     These assertions catch silent errors before they corrupt the DB.
     """
-    assert wines["WineID"].is_unique, "Duplicate WineIDs in catalog"
-    assert wines["WineID"].notna().all(), "Null WineIDs in catalog"
-    assert wines["Harmonize"].notna().all(), "Null Harmonize — food pairing data lost"
-    assert (wines["Harmonize"] != "").all(), "Empty Harmonize — expected all wines to have pairings"
+    assert wines["id"].is_unique, "Duplicate WineIDs in catalog"
+    assert wines["id"].notna().all(), "Null WineIDs in catalog"
+    assert wines["harmonize_csv"].notna().all(), "Null harmonize_csv — food pairing data lost"
+    assert (wines["harmonize_csv"] != "").all(), "Empty harmonize_csv — expected all wines to have pairings"
     assert ratings["Rating"].between(1, 5).all(), "Ratings outside [1,5] slipped through"
     assert ratings["UserID"].notna().all(), "Null UserIDs in ratings"
     assert ratings["WineID"].notna().all(), "Null WineIDs in ratings"
 
     # Every rated wine must exist in the catalog
-    orphan_wines = set(ratings["WineID"].unique()) - set(wines["WineID"].unique())
+    orphan_wines = set(ratings["WineID"].unique()) - set(wines["id"].unique())
     assert not orphan_wines, f"{len(orphan_wines)} rated wines not in catalog"
 
     print("Validation passed.")
