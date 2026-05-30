@@ -8,7 +8,9 @@ Tables:
     PantryItem  -- one row per ingredient a user currently has
     Recipe      -- seeded from Food.com CSV; never written by the app
     UserEvent   -- every cook/skip/rate action (feeds beta_updater)
-    Drink       -- beer + wine catalog, seeded from drinks CSVs
+    Drink       -- parent drink catalog (shared columns)
+    Beer        -- beer-specific attributes (joined to Drink)
+    Wine        -- wine-specific attributes (joined to Drink)
     DrinkEvent  -- every drink rating (explicit or synthesizer-derived)
 """
 
@@ -119,43 +121,56 @@ class UserEvent(Base):
 
 class Drink(Base):
     """
-    Unified beer + wine catalog, discriminated by `kind`.
-    Beer-specific and wine-specific columns are nullable.
-    Seeded from data/beer_reviews.csv. Wine seeding is pending the
-    wine-data branch's dataset choice.
+    Parent table for all drinks — shared columns across beer and wine.
+    Uses joined table inheritance: Beer and Wine extend this with
+    kind-specific columns in their own tables.
+
+    Query all drinks  → query Drink
+    Query wines only  → query Wine (auto-joins drinks + wines)
+    Query beers only  → query Beer (auto-joins drinks + beers)
     """
     __tablename__ = "drinks"
+    __mapper_args__ = {
+        "polymorphic_on": "kind",
+        "polymorphic_identity": "drink",
+    }
 
-    id              = Column(Integer, primary_key=True, index=True)
-    kind            = Column(String, nullable=False, index=True)   # "beer" | "wine"
-    name            = Column(String, nullable=False, index=True)
-    producer        = Column(String, nullable=True)                # brewer / winery
-    country         = Column(String, nullable=True)
-    abv             = Column(Float,  nullable=True)
-    avg_rating      = Column(Float,  nullable=True)
-    n_ratings       = Column(Integer, default=0)
-    # space-separated top-N most-frequent non-stopword tokens from reviews
-    # used by train_drink_cb.py as part of each drink's CB document
-    review_tokens_csv = Column(Text, nullable=True)
+    id                = Column(Integer, primary_key=True, index=True)
+    kind              = Column(String, nullable=False, index=True)   # "beer" | "wine"
+    name              = Column(String, nullable=False, index=True)
+    producer          = Column(String, nullable=True)                # winery / brewery
+    country           = Column(String, nullable=True)
+    style             = Column(String, nullable=True)                # "Red"/"IPA"/"Stout" etc.
+    abv               = Column(Float,  nullable=True)
+    avg_rating        = Column(Float,  nullable=True)
+    n_ratings         = Column(Integer, default=0)
+    harmonize_csv     = Column(Text,   nullable=True)                # comma-sep food pairings
+    review_tokens_csv = Column(Text,   nullable=True)                # CB signal tokens
 
-    # ── beer-specific (nullable) ─────────────────────────────────────────
-    style           = Column(String, nullable=True)                # "IPA", "Stout", ...
-    ibu             = Column(Float,  nullable=True)
-    avg_aroma       = Column(Float,  nullable=True)
-    avg_taste       = Column(Float,  nullable=True)
-    avg_palate      = Column(Float,  nullable=True)
-    avg_appearance  = Column(Float,  nullable=True)
 
-    # ── wine-specific (nullable; from X-Wines) ───────────────────────────
-    wine_type       = Column(String, nullable=True)                # "Red" | "White" | "Rose" | "Sparkling" | "Dessert" | "Dessert/Port"
-    variety         = Column(String, nullable=True)                # primary grape
-    grapes_csv      = Column(Text,   nullable=True)                # full grape list, comma-sep
-    region          = Column(String, nullable=True)
-    body            = Column(String, nullable=True)                # "Full-bodied" | "Medium-bodied" | "Light-bodied" | "Very full-bodied"
-    acidity         = Column(String, nullable=True)                # "High" | "Medium" | "Low"
-    sweetness       = Column(Integer, nullable=True)               # only populated by Slim/Full X-Wines, not Test
-    tannin          = Column(Integer, nullable=True)               # only populated by Slim/Full X-Wines, not Test
-    harmonize_csv   = Column(Text,   nullable=True)                # comma-sep food categories, e.g. "Beef,Lamb,Pasta"
+class Beer(Drink):
+    """Beer-specific attributes. Joined to drinks on id."""
+    __tablename__ = "beers"
+    __mapper_args__ = {"polymorphic_identity": "beer"}
+
+    id             = Column(Integer, ForeignKey("drinks.id"), primary_key=True)
+    ibu            = Column(Float,  nullable=True)
+    avg_aroma      = Column(Float,  nullable=True)
+    avg_taste      = Column(Float,  nullable=True)
+    avg_palate     = Column(Float,  nullable=True)
+    avg_appearance = Column(Float,  nullable=True)
+
+
+class Wine(Drink):
+    """Wine-specific attributes. Joined to drinks on id."""
+    __tablename__ = "wines"
+    __mapper_args__ = {"polymorphic_identity": "wine"}
+
+    id          = Column(Integer, ForeignKey("drinks.id"), primary_key=True)
+    grapes_csv  = Column(Text,   nullable=True)                      # comma-sep grape varieties
+    body        = Column(String, nullable=True)                      # "Full-bodied" etc.
+    acidity     = Column(String, nullable=True)                      # "High" | "Medium" | "Low"
+    region      = Column(String, nullable=True)
 
 
 class DrinkEvent(Base):
