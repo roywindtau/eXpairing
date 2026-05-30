@@ -36,8 +36,8 @@ from surprise.model_selection import cross_validate
 DATA_DIR    = Path("data/drinks")
 MODELS_DIR  = Path("models")
 
-BEER_RATINGS_PATH = DATA_DIR / "clean_beer_ratings.csv"
-WINE_RATINGS_PATH = DATA_DIR / "clean_ratings.csv"
+BEER_RATINGS_PATH = DATA_DIR / "beer" / "clean_beer_ratings.csv"
+WINE_RATINGS_PATH = DATA_DIR / "wine" / "clean_ratings.csv"
 
 MIN_RATINGS_PER_USER = 3
 
@@ -46,7 +46,7 @@ def load_ratings(path: Path, kind: str) -> pd.DataFrame:
     """Load clean ratings CSV (user_id, drink_id, rating).
 
     Both clean_beer_ratings.csv and clean_ratings.csv share this schema,
-    produced by data/drinks/clean_beer.py and clean_wines.py respectively.
+    produced by data/drinks/beer/clean_beer.py and wine/clean_wines.py respectively.
     Cleaning already happened upstream — this just loads.
     """
     print(f"Loading {kind} ratings from {path} ...")

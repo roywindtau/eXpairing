@@ -3,13 +3,13 @@ clean_wines.py
 --------------
 Cleaning pipeline for the X-Wines Full dataset.
 
-Reads raw CSVs, applies cleaning rules documented in wine_data_quality_report.md,
-and writes two clean CSVs ready for seeding:
-    data/drinks/clean_wines.csv
-    data/drinks/clean_ratings.csv
+Reads raw CSVs from data/drinks/wine/ and writes two clean CSVs ready
+for seeding:
+    data/drinks/wine/clean_wines.csv
+    data/drinks/wine/clean_ratings.csv
 
 Run from project root:
-    python -m data.drinks.clean_wines
+    python -m data.drinks.wine.clean_wines
 
 Raw files are never modified (thumb rule: raw data is immutable).
 """

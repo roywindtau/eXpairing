@@ -15,7 +15,7 @@ Column names are aligned with clean_wines.csv for shared concepts:
     avg_rating (← review_overall averaged)
 
 Run from project root:
-    python -m data.drinks.clean_beer
+    python -m data.drinks.beer.clean_beer
 
 Raw file is never modified (raw data is immutable).
 """
@@ -153,7 +153,7 @@ def validate(beers: pd.DataFrame, ratings: pd.DataFrame) -> None:
 def main() -> None:
     if not RAW_BEER_PATH.exists():
         print(f"ERROR: {RAW_BEER_PATH} not found.")
-        print("Run: python -m data.drinks.download_beer")
+        print("Run: python -m data.drinks.beer.download_beer")
         return
 
     print("=== Stage 1: Aggregate beer reviews ===")

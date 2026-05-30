@@ -22,11 +22,11 @@ echo "========================================"
 
 echo ""
 echo "[1/5] Cleaning wines..."
-python -m data.drinks.clean_wines
+python -m data.drinks.wine.clean_wines
 
 echo ""
 echo "[2/5] Cleaning beer..."
-python -m data.drinks.clean_beer
+python -m data.drinks.beer.clean_beer
 
 echo ""
 echo "[3/5] Resetting drink tables (overwrite)..."
