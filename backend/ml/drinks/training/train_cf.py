@@ -1,31 +1,21 @@
 """
-train_drink_cf.py
------------------
-Trains the biased MF (Funk SVD) model for BEER ratings only.
+train_cf.py
+-----------
+Trains a biased MF (Funk SVD) model for beer or wine ratings.
 
-Why beer-only
--------------
-BeerAdvocate gives us ~1.58M explicit ratings across 33k users — plenty
-for biased MF to learn meaningful latent factors. X-Wines Test, in
-contrast, has only ~1k ratings across 636 users; an SVD trained on that
-collapses to global-mean and is worse than a smoothed popularity baseline.
-So wine never gets a Surprise model — it runs entirely on item-sim and
-Bayesian popularity (see drink_cold_start.py).
-
-Synthetic ratings are EXCLUDED here
------------------------------------
-DrinkEvent.synthetic=True rows come from drink_synthesizer.py inferring
-preferences from recipe ratings. They are useful as item-sim SEEDS at
-serve time but are deliberately kept out of SVD training so the matrix-
-factorization signal stays grounded in real, expressed user preferences.
+Loads ratings directly from CSV — no DB dependency.
+Produces one model per kind, trained independently.
 
 Saved artifacts
 ---------------
-    models/drink_cf_model.pkl    trained Surprise SVD
-    models/drink_cf_meta.json    RMSE/MAE + hyperparams + timestamp
+    models/drink_beer_cf_model.pkl   trained Surprise SVD for beer
+    models/drink_beer_cf_meta.json   RMSE/MAE + hyperparams + timestamp
+    models/drink_wine_cf_model.pkl   trained Surprise SVD for wine
+    models/drink_wine_cf_meta.json   RMSE/MAE + hyperparams + timestamp
 
 Run:
-    python -m backend.ml.drinks.training.train_cf [--n-factors 30] [--n-epochs 15]
+    python -m backend.ml.drinks.training.train_cf --kind beer
+    python -m backend.ml.drinks.training.train_cf --kind wine
 """
 
 from __future__ import annotations
@@ -37,47 +27,32 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 
 import pandas as pd
 from surprise import SVD, Dataset, Reader
 from surprise.model_selection import cross_validate
 
-from backend.db.database import SessionLocal
-from backend.db.models import Drink, DrinkEvent
-
+DATA_DIR    = Path("data/drinks")
 MODELS_DIR  = Path("models")
-CF_MODEL    = MODELS_DIR / "drink_cf_model.pkl"
-CF_META     = MODELS_DIR / "drink_cf_meta.json"
+
+BEER_RATINGS_PATH = DATA_DIR / "clean_beer_ratings.csv"
+WINE_RATINGS_PATH = DATA_DIR / "clean_ratings.csv"
 
 MIN_RATINGS_PER_USER = 3
 
 
-def load_beer_ratings() -> pd.DataFrame:
-    """All real (synthetic=False) beer rating events as a (user, item, rating) df."""
-    print("Loading beer ratings from DB ...")
-    db = SessionLocal()
-    try:
-        rows = (
-            db.query(DrinkEvent.user_id, DrinkEvent.drink_id, DrinkEvent.rating)
-            .join(Drink, Drink.id == DrinkEvent.drink_id)
-            .filter(Drink.kind == "beer")
-            .filter(DrinkEvent.event_type == "rate")
-            .filter(DrinkEvent.rating.isnot(None))
-            .filter(DrinkEvent.synthetic == False)  # noqa: E712 — SQLAlchemy needs ==
-            .all()
-        )
-    finally:
-        db.close()
+def load_ratings(path: Path, kind: str) -> pd.DataFrame:
+    """Load clean ratings CSV (user_id, drink_id, rating).
 
-    df = pd.DataFrame(rows, columns=["user_id", "drink_id", "rating"])
-    if len(df) == 0:
-        return df
-
-    print(
-        f"  {len(df):,} ratings, {df['user_id'].nunique():,} users, "
-        f"{df['drink_id'].nunique():,} beers"
-    )
+    Both clean_beer_ratings.csv and clean_ratings.csv share this schema,
+    produced by data/drinks/clean_beer.py and clean_wines.py respectively.
+    Cleaning already happened upstream — this just loads.
+    """
+    print(f"Loading {kind} ratings from {path} ...")
+    df = pd.read_csv(path, dtype={"drink_id": "int32", "rating": "float32"})
+    print(f"  {len(df):,} ratings, {df['user_id'].nunique():,} users, "
+          f"{df['drink_id'].nunique():,} {kind}s")
     density = len(df) / (df["user_id"].nunique() * df["drink_id"].nunique()) * 100
     print(f"  Matrix density: {density:.4f}%")
     return df
@@ -93,12 +68,17 @@ def filter_active_users(df: pd.DataFrame, min_ratings: int) -> pd.DataFrame:
     return out
 
 
-def train(n_factors: int = 30, n_epochs: int = 15) -> None:
+def train(kind: str = "beer", n_factors: int = 30, n_epochs: int = 15) -> None:
+    assert kind in ("beer", "wine"), f"kind must be 'beer' or 'wine', got {kind!r}"
     MODELS_DIR.mkdir(exist_ok=True)
 
-    df = load_beer_ratings()
+    cf_model = MODELS_DIR / f"drink_{kind}_cf_model.pkl"
+    cf_meta  = MODELS_DIR / f"drink_{kind}_cf_meta.json"
+
+    ratings_path = BEER_RATINGS_PATH if kind == "beer" else WINE_RATINGS_PATH
+    df = load_ratings(ratings_path, kind)
     if len(df) == 0:
-        print("No beer ratings found. Run `python -m backend.db.drinks.seed_ratings` first.")
+        print(f"No {kind} ratings found. Check data/drinks/ for the ratings CSV.")
         sys.exit(1)
 
     df = filter_active_users(df, MIN_RATINGS_PER_USER)
@@ -106,26 +86,25 @@ def train(n_factors: int = 30, n_epochs: int = 15) -> None:
         print("After filtering, no ratings left to train on. Lower MIN_RATINGS_PER_USER.")
         sys.exit(1)
 
-    # Beer reviews are on a 0-5 scale (0 occurs occasionally); use 0-5 reader.
-    reader  = Reader(rating_scale=(0, 5))
+    # Beer is 0-5, wine is 1-5
+    rating_scale = (0, 5) if kind == "beer" else (1, 5)
+    reader  = Reader(rating_scale=rating_scale)
     dataset = Dataset.load_from_df(df[["user_id", "drink_id", "rating"]], reader)
 
-    print(f"\nTraining biased MF (n_factors={n_factors}, n_epochs={n_epochs}) on beer ratings ...")
+    print(f"\nTraining biased MF (n_factors={n_factors}, n_epochs={n_epochs}) on {kind} ratings ...")
     model = SVD(
         n_factors=n_factors,
         n_epochs=n_epochs,
         lr_all=0.005,
         reg_all=0.02,
         random_state=42,
-        verbose=False,
+        verbose=True,   # Surprise prints per-epoch SGD progress
     )
 
-    # Skip CV when corpus is tiny (test fixtures): cross_validate needs
-    # at least cv * a-few-ratings-per-fold to be meaningful.
     cv_rmse = cv_mae = None
     if len(df) >= 100:
         print("Running 3-fold cross-validation ...")
-        cv = cross_validate(model, dataset, measures=["RMSE", "MAE"], cv=3, verbose=False)
+        cv = cross_validate(model, dataset, measures=["RMSE", "MAE"], cv=3, verbose=True)
         cv_rmse = float(cv["test_rmse"].mean())
         cv_mae  = float(cv["test_mae"].mean())
         print(f"  CV RMSE: {cv_rmse:.4f}  |  MAE: {cv_mae:.4f}")
@@ -134,35 +113,38 @@ def train(n_factors: int = 30, n_epochs: int = 15) -> None:
     trainset = dataset.build_full_trainset()
     model.fit(trainset)
 
-    with open(CF_MODEL, "wb") as f:
+    with open(cf_model, "wb") as f:
         pickle.dump(model, f)
 
+    item_key = "n_beers" if kind == "beer" else "n_wines"
     meta = {
-        "trained_at":     datetime.now().isoformat(),
-        "algorithm":      "Biased MF / Funk SVD (Surprise)",
-        "kind":           "beer",
-        "synthetic_excluded": True,
-        "n_ratings":      int(len(df)),
-        "n_users":        int(df["user_id"].nunique()),
-        "n_beers":        int(df["drink_id"].nunique()),
-        "n_factors":      n_factors,
-        "n_epochs":       n_epochs,
-        "cv_rmse":        round(cv_rmse, 4) if cv_rmse is not None else None,
-        "cv_mae":         round(cv_mae,  4) if cv_mae  is not None else None,
-        "rating_scale":   [0, 5],
-        "min_ratings_for_cf": 5,
+        "trained_at":         datetime.now().isoformat(),
+        "algorithm":          "Biased MF / Funk SVD (Surprise)",
+        "kind":               kind,
+        "source":             "CSV",
+        "n_ratings":          int(len(df)),
+        "n_users":            int(df["user_id"].nunique()),
+        item_key:             int(df["drink_id"].nunique()),
+        "n_factors":          n_factors,
+        "n_epochs":           n_epochs,
+        "cv_rmse":            round(cv_rmse, 4) if cv_rmse is not None else None,
+        "cv_mae":             round(cv_mae,  4) if cv_mae  is not None else None,
+        "rating_scale":       list(rating_scale),
+        "min_ratings_per_user": MIN_RATINGS_PER_USER,
     }
-    with open(CF_META, "w") as f:
+    with open(cf_meta, "w") as f:
         json.dump(meta, f, indent=2)
 
-    print(f"  Saved -> {CF_MODEL}")
-    print(f"  Saved -> {CF_META}")
-    print(f"\nDone. SVD trained on {len(df):,} beer ratings from {df['user_id'].nunique():,} users.")
+    print(f"  Saved -> {cf_model}")
+    print(f"  Saved -> {cf_meta}")
+    print(f"\nDone. SVD trained on {len(df):,} {kind} ratings from {df['user_id'].nunique():,} users.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--kind",      choices=["beer", "wine"], default="beer",
+                        help="Which drink kind to train CF for.")
     parser.add_argument("--n-factors", type=int, default=30)
     parser.add_argument("--n-epochs",  type=int, default=15)
     args = parser.parse_args()
-    train(n_factors=args.n_factors, n_epochs=args.n_epochs)
+    train(kind=args.kind, n_factors=args.n_factors, n_epochs=args.n_epochs)
