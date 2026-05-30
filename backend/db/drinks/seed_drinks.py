@@ -1,9 +1,9 @@
 """
 seed_drinks.py
 --------------
-Seeds the beers table from data/drinks/clean_beer.csv.
+Seeds the beers table from data/drinks/beer/clean_beer.csv.
 
-Run AFTER data/drinks/clean_beer.py:
+Run AFTER data/drinks/beer/clean_beer.py:
     python -m backend.db.drinks.seed_drinks [--limit 5000]
 """
 
@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from backend.db.database import init_db, SessionLocal
 from backend.db.models import Beer
 
-CLEAN_BEER_PATH = Path("data/drinks/clean_beer.csv")
+CLEAN_BEER_PATH = Path("data/drinks/beer/clean_beer.csv")
 BATCH_SIZE = 5_000
 
 
@@ -37,7 +37,7 @@ def seed(limit: int = 0) -> None:
 
         if not CLEAN_BEER_PATH.exists():
             print(f"ERROR: {CLEAN_BEER_PATH} not found.")
-            print("Run: python -m data.drinks.clean_beer")
+            print("Run: python -m data.drinks.beer.clean_beer")
             return
 
         df = pd.read_csv(CLEAN_BEER_PATH)

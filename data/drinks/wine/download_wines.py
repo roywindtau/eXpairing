@@ -7,11 +7,11 @@ Download the following two files from:
     https://github.com/rogerioxavier/X-Wines/tree/main/Dataset/last
 
 Files needed:
-    XWines_Full_100K_wines.csv   → save to data/drinks/
-    XWines_Full_21M_ratings.csv  → save to data/drinks/
+    XWines_Full_100K_wines.csv   → save to data/drinks/wine/
+    XWines_Full_21M_ratings.csv  → save to data/drinks/wine/
 
 Then run the cleaning pipeline:
-    python -m data.drinks.clean_wines
+    python -m data.drinks.wine.clean_wines
 
 License: CC0 1.0 Universal.
 """

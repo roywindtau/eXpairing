@@ -3,13 +3,13 @@ clean_wines.py
 --------------
 Cleaning pipeline for the X-Wines Full dataset.
 
-Reads raw CSVs, applies cleaning rules documented in wine_data_quality_report.md,
-and writes two clean CSVs ready for seeding:
-    data/drinks/clean_wines.csv
-    data/drinks/clean_ratings.csv
+Reads raw CSVs from data/drinks/wine/ and writes two clean CSVs ready
+for seeding:
+    data/drinks/wine/clean_wines.csv
+    data/drinks/wine/clean_ratings.csv
 
 Run from project root:
-    python -m data.drinks.clean_wines
+    python -m data.drinks.wine.clean_wines
 
 Raw files are never modified (thumb rule: raw data is immutable).
 """
@@ -126,8 +126,13 @@ def clean_ratings() -> pd.DataFrame:
         # X-Wines uses a 1-5 scale; anything outside is a data error.
         chunk = chunk[(chunk["Rating"] >= 1) & (chunk["Rating"] <= 5)]
 
-        # Keep only columns needed for CF training and seeding
-        chunk = chunk[["UserID", "WineID", "Rating", "Date"]]
+        # Keep only columns needed for CF training, with canonical names
+        # shared with clean_beer_ratings.csv (user_id, drink_id, rating)
+        chunk = chunk[["UserID", "WineID", "Rating"]].rename(columns={
+            "UserID": "user_id",
+            "WineID": "drink_id",
+            "Rating": "rating",
+        })
 
         chunks.append(chunk)
 
@@ -142,10 +147,10 @@ def clean_ratings() -> pd.DataFrame:
     # Users with too few ratings don't provide enough signal for CF.
     # Profiling showed the dataset is already pre-filtered to >=5,
     # but we enforce this explicitly so it's visible and adjustable.
-    user_counts = ratings["UserID"].value_counts()
+    user_counts = ratings["user_id"].value_counts()
     valid_users = user_counts[user_counts >= MIN_RATINGS_PER_USER].index
     before = len(ratings)
-    ratings = ratings[ratings["UserID"].isin(valid_users)]
+    ratings = ratings[ratings["user_id"].isin(valid_users)]
     print(f"  Filtered users <{MIN_RATINGS_PER_USER} ratings: {before - len(ratings):,} rows dropped.")
 
     return ratings
@@ -163,12 +168,12 @@ def validate(wines: pd.DataFrame, ratings: pd.DataFrame) -> None:
     assert wines["id"].notna().all(), "Null WineIDs in catalog"
     assert wines["harmonize_csv"].notna().all(), "Null harmonize_csv — food pairing data lost"
     assert (wines["harmonize_csv"] != "").all(), "Empty harmonize_csv — expected all wines to have pairings"
-    assert ratings["Rating"].between(1, 5).all(), "Ratings outside [1,5] slipped through"
-    assert ratings["UserID"].notna().all(), "Null UserIDs in ratings"
-    assert ratings["WineID"].notna().all(), "Null WineIDs in ratings"
+    assert ratings["rating"].between(1, 5).all(), "Ratings outside [1,5] slipped through"
+    assert ratings["user_id"].notna().all(), "Null user_ids in ratings"
+    assert ratings["drink_id"].notna().all(), "Null drink_ids in ratings"
 
     # Every rated wine must exist in the catalog
-    orphan_wines = set(ratings["WineID"].unique()) - set(wines["id"].unique())
+    orphan_wines = set(ratings["drink_id"].unique()) - set(wines["id"].unique())
     assert not orphan_wines, f"{len(orphan_wines)} rated wines not in catalog"
 
     print("Validation passed.")
@@ -185,7 +190,7 @@ def main() -> None:
 
     print("\n=== Stage 2: Clean ratings ===")
     ratings = clean_ratings()
-    print(f"  After cleaning: {len(ratings):,} ratings, {ratings['UserID'].nunique():,} users.")
+    print(f"  After cleaning: {len(ratings):,} ratings, {ratings['user_id'].nunique():,} users.")
 
     print("\n=== Stage 3: Validate ===")
     validate(wines, ratings)

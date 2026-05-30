@@ -88,7 +88,7 @@ Both UI surfaces translate the dominant signal into a plain-English **"why this 
 
 Download both with:
 ```bash
-python3 -m data.drinks.download_beer
+python3 -m data.drinks.beer.download_beer
 ```
 
 ### Train + try the demo

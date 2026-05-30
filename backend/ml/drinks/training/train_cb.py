@@ -16,8 +16,8 @@ needed.
 Per-drink documents
 -------------------
 Beer: "beer {style} {review_tokens_csv}"        e.g. "beer ipa ipa hops"
-Wine: "wine {wine_type} {variety} {grapes_csv} {harmonize_csv}"
-                                                 e.g. "wine red malbec malbec beef lamb grilled"
+Wine: "wine {style} {grapes_csv} {harmonize_csv}"
+                                                 e.g. "wine red malbec beef lamb grilled"
 
 Saved artifacts
 ---------------
@@ -65,10 +65,8 @@ def _drink_doc(d: Drink) -> str:
         if d.review_tokens_csv:
             parts.append(d.review_tokens_csv.replace(",", " "))
     else:  # wine
-        if d.wine_type:
-            parts.append(d.wine_type)
-        if d.variety:
-            parts.append(d.variety)
+        if d.style:
+            parts.append(d.style)
         if d.grapes_csv:
             parts.append(d.grapes_csv.replace(",", " "))
         if d.harmonize_csv:
@@ -86,21 +84,21 @@ def load_drinks() -> tuple[list[int], list[str], list[str]]:
     """Load all drinks from DB; return (ids, kinds, documents) with no empties."""
     print("Loading drinks from DB ...")
     db = SessionLocal()
-    try:
-        drinks = db.query(Drink).all()
-    finally:
-        db.close()
-
     ids:   list[int] = []
     kinds: list[str] = []
     docs:  list[str] = []
-    for d in drinks:
-        doc = _drink_doc(d)
-        if not doc.strip():
-            continue
-        ids.append(d.id)
-        kinds.append(d.kind)
-        docs.append(doc)
+    try:
+        # Build documents inside the session so joined-table child attributes
+        # (grapes_csv, body, ibu, etc.) are accessible without lazy-load errors.
+        for d in db.query(Drink).all():
+            doc = _drink_doc(d)
+            if not doc.strip():
+                continue
+            ids.append(d.id)
+            kinds.append(d.kind)
+            docs.append(doc)
+    finally:
+        db.close()
 
     n_beer = sum(1 for k in kinds if k == "beer")
     n_wine = sum(1 for k in kinds if k == "wine")

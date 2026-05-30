@@ -26,7 +26,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.db.database import get_db
-from backend.db.models import Base, Drink, DrinkEvent, Recipe, User
+from backend.db.models import Base, Beer, Wine, DrinkEvent, Recipe, User
 from backend.main import app
 
 
@@ -35,24 +35,22 @@ from backend.main import app
 def _seed(db):
     db.add_all([
         # 3 wines
-        Drink(id=1, kind="wine", name="Estate Malbec", wine_type="Red",
-              variety="Malbec", grapes_csv="Malbec",
-              harmonize_csv="Beef,Lamb,Grilled",
-              avg_rating=4.2, n_ratings=20),
-        Drink(id=2, kind="wine", name="Coastal Sauvignon", wine_type="White",
-              variety="Sauvignon Blanc", grapes_csv="Sauvignon Blanc",
-              harmonize_csv="Fish,Seafood",
-              avg_rating=3.9, n_ratings=15),
-        Drink(id=3, kind="wine", name="Sparkling Bubbly", wine_type="Sparkling",
-              variety="Chardonnay", harmonize_csv="Appetizer",
-              avg_rating=4.0, n_ratings=10),
+        Wine(id=1, name="Estate Malbec", style="Red",
+             grapes_csv="Malbec", harmonize_csv="Beef,Lamb,Grilled",
+             avg_rating=4.2, n_ratings=20),
+        Wine(id=2, name="Coastal Sauvignon", style="White",
+             grapes_csv="Sauvignon Blanc", harmonize_csv="Fish,Seafood",
+             avg_rating=3.9, n_ratings=15),
+        Wine(id=3, name="Sparkling Bubbly", style="Sparkling",
+             grapes_csv="Chardonnay", harmonize_csv="Appetizer",
+             avg_rating=4.0, n_ratings=10),
         # 3 beers
-        Drink(id=101, kind="beer", name="Hop Bomb", style="American IPA",
-              avg_rating=4.3, n_ratings=200, abv=6.5),
-        Drink(id=102, kind="beer", name="Dark Velvet", style="Imperial Stout",
-              avg_rating=4.1, n_ratings=150, abv=8.0),
-        Drink(id=103, kind="beer", name="Crisp Light", style="Pilsner",
-              avg_rating=3.5, n_ratings=80, abv=4.5),
+        Beer(id=101, name="Hop Bomb", style="American IPA",
+             avg_rating=4.3, n_ratings=200, abv=6.5),
+        Beer(id=102, name="Dark Velvet", style="Imperial Stout",
+             avg_rating=4.1, n_ratings=150, abv=8.0),
+        Beer(id=103, name="Crisp Light", style="Pilsner",
+             avg_rating=3.5, n_ratings=80, abv=4.5),
         # Recipe + user
         Recipe(id=1001, name="Grilled Ribeye",
                ingredients_csv="beef,steak,garlic,butter",
@@ -271,7 +269,7 @@ def test_drink_detail_returns_full_object(client):
     data = r.json()
     assert data["id"] == 1
     assert data["kind"] == "wine"
-    assert data["wine_type"] == "Red"
+    assert data["style"] == "Red"
     assert data["harmonize_csv"] == "Beef,Lamb,Grilled"
 
 

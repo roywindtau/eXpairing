@@ -143,8 +143,8 @@ def _to_out(s: DrinkScore, drink: Drink) -> DrinkScoreOut:
         abv=drink.abv,
         producer=drink.producer,
         style=drink.style,
-        wine_type=drink.wine_type,
-        variety=drink.variety,
+        wine_type=getattr(drink, "style", None),
+        variety=getattr(drink, "grapes_csv", None),
         harmonize_csv=drink.harmonize_csv,
     )
 
@@ -284,7 +284,7 @@ def search_drinks(
         query = query.filter(
             Drink.name.ilike(term)
             | Drink.style.ilike(term)
-            | Drink.variety.ilike(term)
+            | Drink.style.ilike(term)
         )
     rows = (
         query.order_by(Drink.avg_rating.desc().nullslast())
@@ -297,8 +297,6 @@ def search_drinks(
             "name":          d.name,
             "kind":          d.kind,
             "style":         d.style,
-            "wine_type":     d.wine_type,
-            "variety":       d.variety,
             "harmonize_csv": d.harmonize_csv,
             "producer":      d.producer,
             "abv":           d.abv,
@@ -325,20 +323,18 @@ def get_drink_detail(drink_id: int, db: Session = Depends(get_db)):
         "abv":             drink.abv,
         "avg_rating":      drink.avg_rating,
         "n_ratings":       drink.n_ratings,
-        # beer
+        # beer-specific (None for wines)
         "style":           drink.style,
-        "ibu":             drink.ibu,
-        "avg_aroma":       drink.avg_aroma,
-        "avg_taste":       drink.avg_taste,
-        "avg_palate":      drink.avg_palate,
-        "avg_appearance":  drink.avg_appearance,
-        # wine
-        "wine_type":       drink.wine_type,
-        "variety":         drink.variety,
-        "grapes_csv":      drink.grapes_csv,
-        "region":          drink.region,
-        "body":            drink.body,
-        "acidity":         drink.acidity,
+        "ibu":             getattr(drink, "ibu", None),
+        "avg_aroma":       getattr(drink, "avg_aroma", None),
+        "avg_taste":       getattr(drink, "avg_taste", None),
+        "avg_palate":      getattr(drink, "avg_palate", None),
+        "avg_appearance":  getattr(drink, "avg_appearance", None),
+        # wine-specific (None for beers)
+        "grapes_csv":      getattr(drink, "grapes_csv", None),
+        "region":          getattr(drink, "region", None),
+        "body":            getattr(drink, "body", None),
+        "acidity":         getattr(drink, "acidity", None),
         "harmonize_csv":   drink.harmonize_csv,
     }
 

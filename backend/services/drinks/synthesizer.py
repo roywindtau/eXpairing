@@ -69,7 +69,7 @@ def _candidate_drinks_for_kind(
     Uses CB cosine to pre-filter; if CB is unavailable, returns the
     n most-popular drinks of this kind with cb_scores all = 0.
     """
-    from backend.ml import serve_drink_cb
+    from backend.ml.drinks.serving import serve_cb as serve_drink_cb
 
     cb_scores: dict[int, float] = {}
     if serve_drink_cb.model_available():
