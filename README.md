@@ -88,7 +88,7 @@ Both UI surfaces translate the dominant signal into a plain-English **"why this 
 
 Download both with:
 ```bash
-python3 -m data.drinks.download
+python3 -m data.drinks.download_beer
 ```
 
 ### Train + try the demo
@@ -408,8 +408,9 @@ backend/
     seed_dev.py              Dev seed: 20 recipes with tags/steps + demo pantry
     seed_recipes.py          Load Food.com CSV → Recipe table
     seed_ratings.py          Load Food.com ratings → UserEvent table
-    seed_drinks.py           Load Beer Reviews + X-Wines → Drink table
-    seed_drink_ratings.py    Load beer + wine ratings → DrinkEvent (external users)
+  drinks/
+    seed_drinks.py           Load Beer Reviews → Drink table (wine pending)
+    seed_ratings.py          Load beer ratings → DrinkEvent (external users)
   canonicalizer/
     ingredient_map.py        Rule-based + fuzzy product name cleaner
     openfoodfacts.py         Barcode/name lookup via OFF API
