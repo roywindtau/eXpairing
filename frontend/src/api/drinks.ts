@@ -5,17 +5,14 @@ import api from './client'
 
 // ── types matching backend Pydantic models ─────────────────────────────────
 
-export type DrinkKind = 'beer' | 'wine'
+export type DrinkKind = 'wine'
 export type KindFilter = DrinkKind | 'all'
 
 // Strategy labels returned by backend/ml/serve_drink_cf.cf_strategy_name().
 // Keep this union in sync with that function.
 export type CfStrategy =
   | 'popularity_cold_start'  // user has no explicit drink ratings yet
-  | 'wine_item_sim'          // wines always use item-sim from history
-  | 'beer_item_sim'          // beer fallback when no SVD model
-  | 'blended'                // beer 1-4 explicit ratings: (1-α)·item-sim + α·SVD
-  | 'biased_mf'              // beer ≥5 explicit ratings: pure SVD
+  | 'wine_item_sim'          // wines use item-sim from history
   | 'none'
 
 export interface DrinkScoreOut {
@@ -33,8 +30,7 @@ export interface DrinkScoreOut {
   abv:          number | null
   producer:     string | null
   style:         string | null
-  wine_type:     string | null
-  variety:       string | null
+  grapes_csv:    string | null
   harmonize_csv: string | null
 }
 
@@ -43,8 +39,7 @@ export interface DrinkSearchHit {
   name:          string
   kind:          DrinkKind
   style:         string | null
-  wine_type:     string | null
-  variety:       string | null
+  grapes_csv:    string | null
   harmonize_csv: string | null
   producer:      string | null
   abv:           number | null
@@ -61,16 +56,8 @@ export interface DrinkDetail {
   abv: number | null
   avg_rating: number | null
   n_ratings: number
-  // beer
   style: string | null
-  ibu: number | null
-  avg_aroma: number | null
-  avg_taste: number | null
-  avg_palate: number | null
-  avg_appearance: number | null
   // wine
-  wine_type: string | null
-  variety: string | null
   grapes_csv: string | null
   region: string | null
   body: string | null

@@ -36,65 +36,59 @@ backend/
   main.py          FastAPI app
   routers/         pantry, recipes, users, vision, shopping, drinks
   services/        scoring, expiry, ingredient_match, beta_updater, vision_agent,
-                   drink_scoring, drink_synthesizer, expert_pairing
+                   wine:     scoring, synthesizer, expert_pairing
   ml/              recipes:  train_cf, train_cb, item_similarity, serve_cf, serve_cb, cold_start
-                   drinks:   train_drink_cb, train_drink_cf, drink_item_similarity,
-                             serve_drink_cb, serve_drink_cf, drink_cold_start, flavor_bridge
-  db/              SQLAlchemy models (User, Recipe, Drink, UserEvent, DrinkEvent, …) + seed scripts
-data/              download scripts (Food.com + drinks), EDA notebook
+                   wine:     train_cb, train_wine_als, item_similarity,
+                             serve_cb, serve_cf, cold_start, flavor_bridge
+  db/              SQLAlchemy models (User, Recipe, Wine, UserEvent, WineEvent, …) + seed scripts
+data/              download scripts (Food.com + wine), EDA notebook
 train_pipeline.sh  one-shot training pipeline (recipes + drinks)
 tests/             530+ backend tests (unit + behavioral integration) + 63 E2E
 ```
 
-## Drink recommender (beer + wine)
+## Wine recommender
 
-A second recommender module pairs **drinks** to the user, in two contexts:
+A second recommender module pairs **wines** to the user, in two contexts:
 
-- **Path A — Pair with a recipe.** On any recipe detail page, a "Pair this with…" panel shows 4–6 ranked drinks for that specific dish. Surfaces an expert-rules boost (X-Wines Harmonize match for wines, hand-coded style heuristics for beers).
-- **Path B — Drinks For You.** A standalone `/drinks` page ranks drinks by the user's food + drink history. Uses the same CB/CF machinery as recipes, plus a flavor-bridge lexicon that maps recipe ingredients → drink-compatible flavor tokens.
+- **Path A — Pair with a recipe.** On any recipe detail page, a "Pair this with…" panel shows 4–6 ranked wines for that specific dish. Surfaces an expert-rules boost (X-Wines Harmonize match).
+- **Path B — Drinks For You.** A standalone `/drinks` page ranks wines by the user's food + wine history. Uses the same CB/CF machinery as recipes, plus a flavor-bridge lexicon that maps recipe ingredients → wine-compatible flavor tokens.
 
 Both paths share four signal sources blended via min-max calibrated weighted sum:
-- **CB** — TF-IDF over drink descriptors (style/variety/wine type/grapes/Harmonize) bridged from the recipe or user-history side
-- **CF** — Bayesian-smoothed popularity → item-item cosine (cold-start / wines) → Surprise SVD (warm beers, ≥5 explicit ratings)
+- **CB** — TF-IDF over wine descriptors (style/variety/wine type/grapes/Harmonize) bridged from the recipe or user-history side
+- **CF** — Bayesian-smoothed popularity → item-item cosine (wine is too sparse to train matrix factorization)
 - **Expert rules** — Path A only; rule-based pairing knowledge
 - **Popularity prior** — `avg_rating · log1p(n_ratings)` tiebreaker
 
-Cold-start solution: when a user rates a recipe ≥ 4.0, the **drink synthesizer** infers compatible drinks via CB+expert and inserts `DrinkEvent` rows with `synthetic=True, rating=4.0`. These seed the item-similarity path until the user accumulates real drink ratings.
+Cold-start solution: when a user rates a recipe ≥ 4.0, the **wine synthesizer** infers compatible wines via CB+expert and inserts `WineEvent` rows with `synthetic=True, rating=4.0`. These seed the item-similarity path until the user accumulates real wine ratings.
 
-Both UI surfaces translate the dominant signal into a plain-English **"why this drink"** line (`🎯 Harmonizes with Beef, Lamb, Grilled` for expert hits, `🍽️ Matches your food taste` for CB-driven picks, etc.) — the raw algorithm name never leaks to the user.
+Both UI surfaces translate the dominant signal into a plain-English **"why this wine"** line (`🎯 Harmonizes with Beef, Lamb, Grilled` for expert hits, `🍽️ Matches your food taste` for CB-driven picks, etc.) — the raw algorithm name never leaks to the user.
 
-### Drink-recommender docs
+### Wine-recommender docs
 
-- [`docs/drink-recsys-design.md`](docs/drink-recsys-design.md) — architecture, scoring formulas, schema, design rationale, suggested reading order
-- [`docs/drink-recsys-steps.md`](docs/drink-recsys-steps.md) — chronological as-shipped record of the 11 build steps
-- [`docs/drink-recsys-future.md`](docs/drink-recsys-future.md) — deferred work, prioritized by impact-per-effort
+- [`docs/wine-recsys-design.md`](docs/wine-recsys-design.md) — architecture, scoring formulas, schema, design rationale, suggested reading order
+- [`docs/wine-recsys-steps.md`](docs/wine-recsys-steps.md) — chronological as-shipped record of the 11 build steps
+- [`docs/wine-recsys-future.md`](docs/wine-recsys-future.md) — deferred work, prioritized by impact-per-effort
 
 ### Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET`  | `/drinks/ranked?user_id=&kind=&top_n=` | Path B "Drinks For You" |
-| `GET`  | `/drinks/pairings/{recipe_id}?user_id=&kind=&top_n=` | Path A pairing panel |
-| `GET`  | `/drinks/search?q=&kind=&limit=` | Browse / search |
-| `GET`  | `/drinks/{drink_id}` | Drink detail |
-| `POST` | `/drink-events` | Log a drink rating (1–5 stars) |
+| `GET`  | `/drinks/ranked?user_id=&top_n=` | Path B "Drinks For You" |
+| `GET`  | `/drinks/pairings/{recipe_id}?user_id=&top_n=` | Path A pairing panel |
+| `GET`  | `/drinks/search?q=&limit=` | Browse / search |
+| `GET`  | `/drinks/{drink_id}` | Wine detail |
+| `POST` | `/drink-events` | Log a wine rating (1–5 stars) |
 
-`kind` accepts `beer`, `wine`, or `all` (default). The synthesizer fires only on **recipe** rate events; drink rate events feed directly into SVD / item-sim.
+The catalog is wine-only. The synthesizer fires only on **recipe** rate events; wine rate events feed directly into item-sim.
 
 ### Datasets
 
-- **[Beer Reviews](https://www.kaggle.com/datasets/rdoume/beerreviews)** (Kaggle) — ~66k beers, ~1.5M ratings
 - **[X-Wines](https://github.com/rogerioxavier/X-Wines)** (Test slice from GitHub) — 100 wines, ~1k ratings
-
-Download both with:
-```bash
-python3 -m data.download_drinks
-```
 
 ### Train + try the demo
 
 ```bash
-# Build the drink models (~3 minutes on the Test slice)
+# Build the wine models (~3 minutes on the Test slice)
 ./train_pipeline.sh --drinks-only
 
 # Restart the backend so it picks up the new artifacts
@@ -107,13 +101,13 @@ uvicorn backend.main:app --reload
 You can also probe the API directly:
 
 ```bash
-# Path B — drinks for user 1
-curl "http://localhost:8000/drinks/ranked?user_id=1&kind=wine&top_n=5" | jq
+# Path B — wine recommendations for user 1
+curl "http://localhost:8000/drinks/ranked?user_id=1&top_n=5" | jq
 
 # Path A — wine pairings for recipe 42
-curl "http://localhost:8000/drinks/pairings/42?user_id=1&kind=wine&top_n=6" | jq
+curl "http://localhost:8000/drinks/pairings/42?user_id=1&top_n=6" | jq
 
-# Rate a drink
+# Rate a wine
 curl -X POST "http://localhost:8000/drink-events" \
      -H "Content-Type: application/json" \
      -d '{"user_id":1,"drink_id":1,"event_type":"rate","rating":4.5}'
@@ -382,9 +376,9 @@ backend/
     ingredient_match.py      Fuzzy ingredient overlap
     beta_updater.py          Daily preference learning job
     vision_agent.py          GPT-4o vision + ingredient canonicalization
-    drink_scoring.py         Drink ranking — Path A + Path B formulas
-    drink_synthesizer.py     Recipe-rate ≥ 4.0 → synthetic DrinkEvents (cold start)
-    expert_pairing.py        Rule-based expert boost (Harmonize + beer style heuristics)
+    scoring.py               Wine ranking — Path A + Path B formulas
+    synthesizer.py           Recipe-rate ≥ 4.0 → synthetic WineEvents (cold start)
+    expert_pairing.py        Rule-based expert boost (X-Wines Harmonize match)
   ml/
     cold_start.py            Preference-seeded cold start CF (with fallback)
     item_similarity.py       Sparse item-item similarity matrix (training)
@@ -394,22 +388,21 @@ backend/
     serve_cb.py              CB serving — cosine similarity at request time
     user_vector.py           Pantry → TF-IDF vector utility
     evaluate.py              RMSE, Precision@K, Recall@K, ablation
-    flavor_bridge.py         Ingredient → drink-side flavor token lexicon
-    train_drink_cb.py        Drink TF-IDF training (style + variety + Harmonize)
-    train_drink_cf.py        Drink SVD training (beers only — wines too sparse)
-    drink_item_similarity.py Drink item-item cosine matrices (one per kind)
-    drink_cold_start.py      Bayesian popularity + item-sim seed scores
-    serve_drink_cb.py        Drink CB serving — cb_for_recipe + cb_for_user
-    serve_drink_cf.py        Drink CF serving — routes by warmth + kind
+    flavor_bridge.py         Ingredient → wine-side flavor token lexicon
+    train_cb.py              Wine TF-IDF training (style + variety + Harmonize)
+    item_similarity.py       Wine item-item cosine matrix
+    cold_start.py            Bayesian popularity + item-sim seed scores
+    serve_cb.py              Wine CB serving — cb_for_recipe + cb_for_user
+    serve_cf.py              Wine CF serving — popularity + item-sim
   db/
     models.py                SQLAlchemy ORM (User, PantryItem, Recipe, UserEvent,
-                               ShoppingListItem, Drink, DrinkEvent)
+                               ShoppingListItem, Wine, WineEvent)
     database.py              Engine, session, init_db
     seed_dev.py              Dev seed: 20 recipes with tags/steps + demo pantry
     seed_recipes.py          Load Food.com CSV → Recipe table
     seed_ratings.py          Load Food.com ratings → UserEvent table
-    seed_drinks.py           Load Beer Reviews + X-Wines → Drink table
-    seed_drink_ratings.py    Load beer + wine ratings → DrinkEvent (external users)
+  drinks/
+    seed_wines.py            Load X-Wines → Wine table + WineEvent ratings
   canonicalizer/
     ingredient_map.py        Rule-based + fuzzy product name cleaner
     openfoodfacts.py         Barcode/name lookup via OFF API
@@ -419,22 +412,22 @@ frontend/src/
   api/client.ts              Axios client + all TypeScript types
   hooks/useUserId.ts         Persists user ID in localStorage
   index.css                  CSS custom properties + base styles
-  api/drinks.ts              Typed wrappers for the 5 drink endpoints
+  api/drinks.ts              Typed wrappers for the 5 wine endpoints
   components/
     ExpiryBadge.tsx          Color-coded days-remaining badge + urgency bar
     IngredientAutocomplete.tsx  Debounced autocomplete input backed by /pantry/suggest
     RecipeCard.tsx           Score ring + match ring, explainer, Cook→Rate flow, Buy missing button
     ScoreExplainer.tsx       4-component score breakdown bars (unavailable = grayed)
     VisionScanner.tsx        Photo scan → confirm → add to pantry
-    DrinkCard.tsx            Path-B drink card with kind badge, breakdown, star rating
+    DrinkCard.tsx            Path-B wine card with score breakdown, star rating
     DrinkPairingPanel.tsx    Path-A pairing panel on RecipeDetailPage ("Pair this with…")
   pages/
     OnboardingPage.tsx       First-run: name, beta slider, diet tags
     PantryPage.tsx           Pantry management with expiry rows + scan button
     RecipeFeedPage.tsx       Ranked recipe feed with CF strategy banner + sort-by dropdown
-    RecipeDetailPage.tsx     Full recipe + drink pairing panel at bottom
+    RecipeDetailPage.tsx     Full recipe + wine pairing panel at bottom
     BrowsePage.tsx           Search/filter all recipes (clickable → detail)
-    DrinksForYouPage.tsx     Path-B drinks feed (kind toggle, sort, CF banner)
+    DrinksForYouPage.tsx     Path-B wine feed (sort, CF banner)
     ProfilePage.tsx          Beta + diet tags + CF progress bar
     ShoppingListPage.tsx     Buy-list: check off items, clear purchased, source recipe attribution
 
@@ -457,15 +450,15 @@ frontend/e2e/
 
 data/
   download_foodcom.py        Kaggle download (Food.com)
-  download_drinks.py         Kaggle (Beer Reviews) + GitHub raw (X-Wines Test)
+  wine/download_wines.py     GitHub raw (X-Wines Test)
   explore_foodcom.ipynb      EDA notebook
 
 train_pipeline.sh            One-shot training pipeline (recipes + drinks,
                                supports --skip-drinks / --drinks-only)
 
 docs/
-  drink-recsys-design.md     Drink recommender architecture + rationale
-  drink-recsys-steps.md      11-step implementation plan with acceptance criteria
+  wine-recsys-design.md     Wine recommender architecture + rationale
+  wine-recsys-steps.md      11-step implementation plan with acceptance criteria
 
 models/                      Trained artifacts (git-ignored)
   # recipes
@@ -475,19 +468,15 @@ models/                      Trained artifacts (git-ignored)
   cb_matrix.npz              TF-IDF recipe embeddings
   cb_vectorizer.pkl          Fitted TfidfVectorizer
   eval_results.json          Offline evaluation results
-  # drinks
-  drink_cb_matrix.npz        TF-IDF drink embeddings
-  drink_cb_vectorizer.pkl    Fitted TfidfVectorizer for drinks
-  drink_cb_ids.npy           Drink ID index (aligned with matrix rows)
-  drink_cb_kinds.npy         Per-row kind (beer/wine) for kind-filtered queries
+  # wine
+  drink_cb_matrix.npz        TF-IDF wine embeddings
+  drink_cb_vectorizer.pkl    Fitted TfidfVectorizer for wine
+  drink_cb_ids.npy           Wine ID index (aligned with matrix rows)
+  drink_cb_kinds.npy         Per-row kind tag (legacy; all 'wine')
   drink_cb_meta.json         Trained-on counts, hyperparams
-  drink_cf_model.pkl         Surprise SVD trained on non-synthetic beer ratings
-  drink_cf_meta.json         SVD hyperparams + filtered rating counts
-  drink_sim_beer.npz         Beer item-item cosine similarity (≥5 ratings)
-  drink_sim_beer_ids.npy     Beer ID index for the beer sim matrix
   drink_sim_wine.npz         Wine item-item cosine similarity (≥2 ratings)
   drink_sim_wine_ids.npy     Wine ID index for the wine sim matrix
-  drink_sim_meta.json        Filter thresholds + per-kind counts
+  drink_sim_meta.json        Filter thresholds + wine counts
 ```
 
 ---
