@@ -4,7 +4,7 @@
 //
 // Visually denser than the Path-B feed so 4-6 picks fit on one screen.
 // The "why" line surfaces the expert boost reason (Harmonize match for
-// wines, style heuristic for beers) when it's non-zero.
+// wines) when it's non-zero.
 
 import { useCallback, useEffect, useState } from 'react'
 import type { DrinkScoreOut, KindFilter } from '../api/drinks'
@@ -20,8 +20,6 @@ interface Props {
 
 const KIND_OPTIONS: { key: KindFilter; label: string; icon: string }[] = [
   { key: 'wine', label: 'Wine', icon: '🍷' },
-  { key: 'beer', label: 'Beer', icon: '🍺' },
-  { key: 'all',  label: 'All',  icon: '🥂' },
 ]
 
 // ── compact score ring (36px) ───────────────────────────────────────────
@@ -84,13 +82,6 @@ function pairingReason(d: DrinkScoreOut, recipeTags: string[]): string | null {
       const harmonize = d.harmonize_csv.split(',').map(s => s.trim()).filter(Boolean)
       return `Harmonizes with ${harmonize.slice(0, 3).join(', ')}`
     }
-    if (d.kind === 'beer' && d.style) {
-      // Build a "style + tag" hint when possible
-      const tagHit = recipeTags.find(t =>
-        ['spicy', 'bbq', 'grilled', 'dessert', 'breakfast'].includes(t.toLowerCase())
-      )
-      return tagHit ? `${d.style} loves ${tagHit}` : `Classic ${d.style} pairing`
-    }
     return 'Classic pairing'
   }
   // No expert hit — describe what won the slot
@@ -125,10 +116,8 @@ function PairingCard({
   }
 
   const reason = pairingReason(drink, recipeTags)
-  const icon   = drink.kind === 'beer' ? '🍺' : '🍷'
-  const sub    = drink.kind === 'beer'
-    ? [drink.style, drink.abv ? `${drink.abv.toFixed(1)}%` : null].filter(Boolean).join(' · ')
-    : [drink.wine_type, drink.variety].filter(Boolean).join(' · ')
+  const icon   = '🍷'
+  const sub    = [drink.style, drink.grapes_csv].filter(Boolean).join(' · ')
 
   return (
     <div className="card" style={{

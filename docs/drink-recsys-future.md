@@ -1,55 +1,44 @@
-# Drink Recommender — Roadmap
+# Wine Recommender — Roadmap
 
 ## Current state (as of 2026-05-30)
 
 - X-Wines Full (100K wines, 21M ratings) downloaded, cleaned, seeded into DB
-- BeerAdvocate (~66K beers, 1.58M reviews) cleaned, seeded into DB
-- DB schema migrated to joined table inheritance (Drink → Beer / Wine)
-- No models trained yet — models/ is empty
+- DB schema uses joined table inheritance (Drink → Wine)
+- Wine CF model trained (confidence-weighted ALS — see `docs/wine-cf-experiments.md`)
 
 ---
 
 ## Product features
 
-Two scenarios, six permutations:
+Two scenarios:
 
-**Scenario 1 — Pair a drink to a recipe**
-- Wine pairing: `expert(wine, recipe)` + `taste(user, wine)` + `curiosity`
-- Beer pairing: `expert(beer, recipe)` + `taste(user, beer)` + `curiosity`
-- Any drink: both, weighted by `preference(user, wine vs beer)`
+**Scenario 1 — Pair a wine to a recipe**
+- `expert(wine, recipe)` + `taste(user, wine)` + `curiosity`
 
-**Scenario 2 — Recommend me a drink**
-- Wine: `taste(user, wine)` + `curiosity`
-- Beer: `taste(user, beer)` + `curiosity`
-- Any drink: both, weighted by `preference(user, wine vs beer)`
+**Scenario 2 — Recommend me a wine**
+- `taste(user, wine)` + `curiosity`
 
 **Signal definitions:**
-- `taste(user, wine)` — CF model trained on wine ratings CSV
-- `taste(user, beer)` — CF model trained on beer ratings CSV
-- `expert(drink, recipe)` — Harmonize rules + sommelier heuristics (fatty→tannin, spicy→low acidity, etc.) + CB model
-- `preference(user, wine vs beer)` — ratio of wine/beer events in DrinkEvent at serve time
+- `taste(user, wine)` — CF model trained on wine ratings (ALS)
+- `expert(wine, recipe)` — Harmonize rules + sommelier heuristics (fatty→tannin, spicy→low acidity, etc.) + CB model
 - `curiosity` — serve-time diversity parameter (MMR or epsilon), not trained
 
 ---
 
 ## User stories
 
-### US-1: Train CF (beer + wine) — IN PROGRESS (pre-train-cf branch)
+### US-1: Train wine CF — DONE
 
-Train Funk SVD on each drink kind's ratings CSV directly (not from DB).
-Covers Scenario 2 (recommend me a drink) for warm users.
-
-- Rewrite `train_cf.py` to load from CSV instead of DrinkEvent table
-- Train beer CF on `data/drinks/beer_reviews.csv`
-- Train wine CF on `data/drinks/clean_ratings.csv`
-- Build beer + wine item-similarity matrices (cold start)
+Confidence-weighted ALS trained on wine ratings (chosen over Funk SVD on
+ranking metrics — see `docs/wine-cf-experiments.md`). Covers Scenario 2
+(recommend me a wine) for warm users. Item-similarity matrix built for the
+cold-start / sparse serving path.
 
 ### US-2: Add exploration
 
 Wire curiosity parameter into the serving layer.
-Covers the diversity requirement across all 6 permutations.
 
-- Implement MMR reranking in drink scoring
+- Implement MMR reranking in wine scoring
 - Tunable λ parameter per request
 - Mirror recipe stack's MMR implementation
 
@@ -57,11 +46,16 @@ Covers the diversity requirement across all 6 permutations.
 
 ### US-3: Sommelier CB — pairing model
 
-Train content-based model for Scenario 1 (pair a drink to a recipe).
+Train content-based models for Scenario 1 (pair a wine to a recipe). Two CB
+signals are still needed:
 
+- **Wine→food CB** — match a wine to a recipe via the flavor bridge
+- **Wine→wine CB** — surface wines similar to ones the user has liked
+
+Plus:
 - Define sommelier rules: fatty→high tannin, spicy→low acidity, rich→full body, etc.
 - Extend Harmonize matching with these rules in `expert_pairing.py`
-- Train CB model on wine/beer attributes + recipe features via flavor bridge
+- Train CB model on wine attributes + recipe features via flavor bridge
 - Blend: `pairing_score = α × rules + (1-α) × cb_score`
 
 → After US-3: **Scenario 1 fully covered.**

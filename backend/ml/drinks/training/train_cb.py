@@ -1,21 +1,16 @@
 """
 train_drink_cb.py
 -----------------
-TF-IDF content-based embeddings for every drink (beer + wine) in the DB.
+TF-IDF content-based embeddings for every wine in the DB.
 Mirrors backend/ml/train_cb.py one-to-one but for the Drink table.
 
-Why one shared vectorizer over beer + wine
-------------------------------------------
-Both kinds share a common output vocabulary (style words, harmonize
-categories, wine body terms) which `flavor_bridge.py` is deliberately
-designed to inject into recipe docs at query time. A single TfidfVectorizer
-over the union means the cosine in serve_drink_cb naturally compares all
-drinks against any recipe in one shot — no cross-kind score calibration
-needed.
+The vocabulary (style words, harmonize categories, wine body terms) is what
+`flavor_bridge.py` is deliberately designed to inject into recipe docs at
+query time, so the cosine in serve_drink_cb compares wines against any recipe
+in one shot.
 
 Per-drink documents
 -------------------
-Beer: "beer {style} {review_tokens_csv}"        e.g. "beer ipa ipa hops"
 Wine: "wine {style} {grapes_csv} {harmonize_csv}"
                                                  e.g. "wine red malbec beef lamb grilled"
 
@@ -23,7 +18,7 @@ Saved artifacts
 ---------------
     models/drink_cb_matrix.npz       sparse TF-IDF matrix (n_drinks x vocab)
     models/drink_cb_ids.npy          drink_id for each row in the matrix
-    models/drink_cb_kinds.npy        "beer" | "wine" for each row (object array)
+    models/drink_cb_kinds.npy        "wine" for each row (object array)
     models/drink_cb_vectorizer.pkl   fitted TfidfVectorizer
     models/drink_cb_meta.json        training stats
 
@@ -59,23 +54,17 @@ CB_META           = MODELS_DIR / "drink_cb_meta.json"
 def _drink_doc(d: Drink) -> str:
     """Compose the per-drink text document fed into TF-IDF."""
     parts: list[str] = [d.kind]
-    if d.kind == "beer":
-        if d.style:
-            parts.append(d.style)
-        if d.review_tokens_csv:
-            parts.append(d.review_tokens_csv.replace(",", " "))
-    else:  # wine
-        if d.style:
-            parts.append(d.style)
-        if d.grapes_csv:
-            parts.append(d.grapes_csv.replace(",", " "))
-        if d.harmonize_csv:
-            parts.append(d.harmonize_csv.replace(",", " "))
-        # Review tokens for wine were computed at seed-time from harmonize/grapes/name,
-        # so they mostly overlap with the above. Including them is still cheap and
-        # gives a small TF boost to repeated tokens.
-        if d.review_tokens_csv:
-            parts.append(d.review_tokens_csv.replace(",", " "))
+    if d.style:
+        parts.append(d.style)
+    if d.grapes_csv:
+        parts.append(d.grapes_csv.replace(",", " "))
+    if d.harmonize_csv:
+        parts.append(d.harmonize_csv.replace(",", " "))
+    # Review tokens for wine were computed at seed-time from harmonize/grapes/name,
+    # so they mostly overlap with the above. Including them is still cheap and
+    # gives a small TF boost to repeated tokens.
+    if d.review_tokens_csv:
+        parts.append(d.review_tokens_csv.replace(",", " "))
     # Lowercase the whole thing so the vectorizer's token_pattern matches.
     return " ".join(parts).lower()
 
@@ -100,9 +89,8 @@ def load_drinks() -> tuple[list[int], list[str], list[str]]:
     finally:
         db.close()
 
-    n_beer = sum(1 for k in kinds if k == "beer")
     n_wine = sum(1 for k in kinds if k == "wine")
-    print(f"  Loaded {len(ids):,} drinks ({n_beer:,} beers, {n_wine:,} wines).")
+    print(f"  Loaded {len(ids):,} drinks ({n_wine:,} wines).")
     return ids, kinds, docs
 
 
@@ -111,7 +99,7 @@ def train() -> None:
 
     ids, kinds, documents = load_drinks()
     if not ids:
-        print("No drinks found. Run `python -m backend.db.drinks.seed_drinks` first.")
+        print("No drinks found. Run `python -m backend.db.drinks.seed_wines` first.")
         sys.exit(1)
 
     # Match recipe CB conventions for parity: same ngram range, same
@@ -142,7 +130,6 @@ def train() -> None:
     meta = {
         "trained_at":   datetime.now().isoformat(),
         "n_drinks":     len(ids),
-        "n_beers":      sum(1 for k in kinds if k == "beer"),
         "n_wines":      sum(1 for k in kinds if k == "wine"),
         "vocab_size":   vocab_size,
         "matrix_shape": list(tfidf_matrix.shape),

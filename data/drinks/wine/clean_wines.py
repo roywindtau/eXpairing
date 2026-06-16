@@ -78,7 +78,7 @@ def clean_wines(df: pd.DataFrame) -> pd.DataFrame:
         "Vintages",             # not used in recommendations
     ])
 
-    # Rename to canonical names shared with clean_beer.csv
+    # Rename to canonical drink-catalog column names
     df = df.rename(columns={
         "WineID":     "id",
         "WineName":   "name",
@@ -127,7 +127,7 @@ def clean_ratings() -> pd.DataFrame:
         chunk = chunk[(chunk["Rating"] >= 1) & (chunk["Rating"] <= 5)]
 
         # Keep only columns needed for CF training, with canonical names
-        # shared with clean_beer_ratings.csv (user_id, drink_id, rating)
+        # (user_id, drink_id, rating)
         chunk = chunk[["UserID", "WineID", "Rating"]].rename(columns={
             "UserID": "user_id",
             "WineID": "drink_id",

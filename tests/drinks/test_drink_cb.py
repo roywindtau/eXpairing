@@ -5,7 +5,7 @@ End-to-end tests for backend/ml/train_drink_cb.py and serve_drink_cb.py.
 
 Strategy:
   - Build an in-memory SQLite DB with a small but representative fixture
-    (3 beers, 3 wines, 4 recipes, 4 user-rating events)
+    (3 wines, 4 recipes, 4 user-rating events)
   - Train the drink CB into a tmp `models/` dir (monkeypatched paths)
   - Verify artifacts exist, then exercise cb_for_recipe / cb_for_user
   - Validate semantics: a beef-heavy recipe must rank Red wine above White,
@@ -24,7 +24,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.db.models import Base, Beer, Wine, Recipe, User, UserEvent
+from backend.db.models import Base, Wine, Recipe, User, UserEvent
 from backend.ml.drinks.serving import serve_cb as serve_drink_cb
 from backend.ml.drinks.training import train_cb as train_drink_cb
 
@@ -46,13 +46,6 @@ def _seed_fixture(db):
              grapes_csv="Chardonnay", harmonize_csv="Appetizer,Cheese",
              body="Light-bodied", acidity="High",
              review_tokens_csv="appetizer,cheese,sparkling"),
-        # Beers
-        Beer(id=101, name="Hop Bomb", style="IPA",
-             review_tokens_csv="ipa"),
-        Beer(id=102, name="Dark Velvet", style="Stout",
-             review_tokens_csv="stout"),
-        Beer(id=103, name="Crisp Light", style="Pilsner",
-             review_tokens_csv="pilsner"),
         # Recipes (used by cb_for_user)
         Recipe(id=1001, name="Grilled Ribeye", ingredients_csv="beef,steak,garlic,butter",
                tags_csv="american,bbq"),
@@ -122,10 +115,10 @@ def test_training_writes_all_artifacts(trained_cb):
 
 def test_artifact_shapes_match(trained_cb):
     serve_drink_cb._load()
-    assert serve_drink_cb._matrix.shape[0] == 6   # 3 wines + 3 beers
-    assert len(serve_drink_cb._drink_ids) == 6
-    assert len(serve_drink_cb._kinds) == 6
-    assert set(serve_drink_cb._kinds.tolist()) == {"beer", "wine"}
+    assert serve_drink_cb._matrix.shape[0] == 3   # 3 wines
+    assert len(serve_drink_cb._drink_ids) == 3
+    assert len(serve_drink_cb._kinds) == 3
+    assert set(serve_drink_cb._kinds.tolist()) == {"wine"}
 
 
 def test_model_available_true_after_train(trained_cb):
@@ -170,32 +163,17 @@ def test_cb_for_recipe_seafood_prefers_white_wine(trained_cb):
     assert scores[2] > scores[1], f"White {scores[2]} should beat Red {scores[1]} for shrimp"
 
 
-def test_cb_for_recipe_spicy_prefers_ipa(trained_cb):
-    """flavor_bridge maps 'chili' -> ['spicy','ipa',...]; IPA should beat Pilsner."""
-    Session, _ = trained_cb
-    db = Session()
-    try:
-        curry = db.query(Recipe).get(1003)
-        scores = serve_drink_cb.cb_for_recipe(curry, kind_filter="beer")
-    finally:
-        db.close()
-    assert scores
-    assert scores[101] >= scores[103], f"IPA {scores[101]} should >= Pilsner {scores[103]} for curry"
-
-
 def test_kind_filter_restricts_results(trained_cb):
     Session, _ = trained_cb
     db = Session()
     try:
         recipe = db.query(Recipe).get(1001)
-        beer_only = serve_drink_cb.cb_for_recipe(recipe, kind_filter="beer")
         wine_only = serve_drink_cb.cb_for_recipe(recipe, kind_filter="wine")
         all_drinks = serve_drink_cb.cb_for_recipe(recipe, kind_filter=None)
     finally:
         db.close()
-    assert all(did >= 100 for did in beer_only.keys())
     assert all(did < 100 for did in wine_only.keys())
-    assert set(all_drinks.keys()) == set(beer_only.keys()) | set(wine_only.keys())
+    assert set(all_drinks.keys()) == set(wine_only.keys())
 
 
 def test_cb_for_recipe_empty_recipe_returns_empty(trained_cb):

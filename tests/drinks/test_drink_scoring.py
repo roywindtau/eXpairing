@@ -31,7 +31,7 @@ from backend.services.drinks.scoring import (
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
-def _drink(id_, name, kind="beer", avg=4.0, n=100):
+def _drink(id_, name, kind="wine", avg=4.0, n=100):
     return SimpleNamespace(id=id_, name=name, kind=kind, avg_rating=avg, n_ratings=n)
 
 
@@ -80,7 +80,7 @@ def test_popularity_prior_zero_when_no_ratings():
 
 
 def test_popularity_prior_handles_missing_attrs():
-    d = SimpleNamespace(id=1, name="X", kind="beer", avg_rating=None, n_ratings=None)
+    d = SimpleNamespace(id=1, name="X", kind="wine", avg_rating=None, n_ratings=None)
     assert _popularity_prior(d) == 0.0
 
 
@@ -236,35 +236,35 @@ def test_rank_drinks_for_user_passes_cf_strategy():
 
 def test_drink_score_is_constructible_with_all_fields():
     s = DrinkScore(
-        drink_id=1, drink_name="X", kind="beer",
+        drink_id=1, drink_name="X", kind="wine",
         final_score=0.5, cb_score=0.3, cf_score=0.4,
-        expert_boost=0.1, prior_score=2.0, cf_strategy="biased_mf",
+        expert_boost=0.1, prior_score=2.0, cf_strategy="wine_item_sim",
     )
     assert s.drink_id == 1
     assert s.matched_harmonize == []
 
 
 def test_drink_scores_are_sortable_by_final():
-    a = DrinkScore(1, "A", "beer", 0.3, 0, 0, 0, 0)
+    a = DrinkScore(1, "A", "wine", 0.3, 0, 0, 0, 0)
     b = DrinkScore(2, "B", "wine", 0.7, 0, 0, 0, 0)
     out = sorted([a, b], key=lambda s: -s.final_score)
     assert out[0].drink_id == 2
 
 
-# ── mixed beer + wine in same pool ──────────────────────────────────────
+# ── ranking a wine pool ─────────────────────────────────────────────────
 
-def test_rank_drinks_mixed_kinds():
-    """Beer and wine candidates can be ranked together with one calibration pass."""
+def test_rank_drinks_wine_pool():
+    """Wine candidates are ranked together with one calibration pass."""
     drinks = [
-        _drink(1, "IPA",  kind="beer", avg=4.5, n=200),
-        _drink(2, "Malbec", kind="wine", avg=4.2, n=100),
-        _drink(3, "Stout", kind="beer", avg=4.0, n=50),
+        _drink(1, "Cabernet", kind="wine", avg=4.5, n=200),
+        _drink(2, "Malbec",   kind="wine", avg=4.2, n=100),
+        _drink(3, "Pinot",    kind="wine", avg=4.0, n=50),
     ]
     cb = {1: 0.5, 2: 0.8, 3: 0.4}
     cf = {1: 0.6, 2: 0.5, 3: 0.7}
     expert = {1: 0.0, 2: 0.1, 3: 0.0}
     ranked = rank_drinks_for_recipe(None, drinks, cb, cf, expert)
     assert len(ranked) == 3
-    assert {s.kind for s in ranked} == {"beer", "wine"}
+    assert {s.kind for s in ranked} == {"wine"}
     # Malbec has highest cb + expert match → should be top
     assert ranked[0].drink_id == 2

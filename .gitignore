@@ -18,14 +18,15 @@ models/*.pkl
 models/*.npz
 models/*.npy
 models/*.json
+# Frozen eval splits (regenerable via build_wine_split.py)
+models/wine_split/
 
 # Data (download via data/download_foodcom.py)
 data/RAW_recipes.csv
 data/RAW_interactions.csv
 data/openfoodfacts_cache.json
 
-# Drink datasets (download via data/drinks/{beer,wine}/download_*.py)
-data/beer_reviews.csv
+# Drink datasets (download via data/drinks/wine/download_*.py)
 data/drinks/**/*.csv
 
 # Frontend

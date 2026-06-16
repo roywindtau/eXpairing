@@ -119,13 +119,8 @@ function whyForYou(drink: DrinkScoreOut): { text: string; icon: string } | null 
   // CF dominates → describe HOW the CF score was computed
   if (cf_score >= prior_score) {
     switch (cf_strategy) {
-      case 'biased_mf':
-        return { icon: '✨', text: 'Predicted from your drink ratings' }
-      case 'blended':
-        return { icon: '✨', text: 'Blends your ratings with similar drinkers' }
       case 'wine_item_sim':
-      case 'beer_item_sim':
-        return { icon: '🤝', text: 'Similar to drinks you\'ve liked' }
+        return { icon: '🤝', text: 'Similar to wines you\'ve liked' }
       case 'popularity_cold_start':
         return { icon: '🔥', text: 'Loved by the community' }
       default:
@@ -175,13 +170,10 @@ export function DrinkCard({ drink, userId, onRated, onDismiss }: Props) {
     )
   }
 
-  const icon = drink.kind === 'beer' ? '🍺' : '🍷'
-  const kindBadge = drink.kind === 'beer' ? 'badge-amber' : 'badge-green'
-  // Pick the most informative subtitle line per kind
-  const subtitle =
-    drink.kind === 'beer'
-      ? [drink.style, drink.abv ? `${drink.abv.toFixed(1)}% ABV` : null].filter(Boolean).join(' · ')
-      : [drink.wine_type, drink.variety].filter(Boolean).join(' · ')
+  const icon = '🍷'
+  const kindBadge = 'badge-green'
+  // Most informative subtitle line: wine style + grape variety
+  const subtitle = [drink.style, drink.grapes_csv].filter(Boolean).join(' · ')
 
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>

@@ -26,7 +26,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.db.database import get_db
-from backend.db.models import Base, Beer, Wine, DrinkEvent, Recipe, User
+from backend.db.models import Base, Wine, DrinkEvent, Recipe, User
 from backend.main import app
 
 
@@ -44,13 +44,6 @@ def _seed(db):
         Wine(id=3, name="Sparkling Bubbly", style="Sparkling",
              grapes_csv="Chardonnay", harmonize_csv="Appetizer",
              avg_rating=4.0, n_ratings=10),
-        # 3 beers
-        Beer(id=101, name="Hop Bomb", style="American IPA",
-             avg_rating=4.3, n_ratings=200, abv=6.5),
-        Beer(id=102, name="Dark Velvet", style="Imperial Stout",
-             avg_rating=4.1, n_ratings=150, abv=8.0),
-        Beer(id=103, name="Crisp Light", style="Pilsner",
-             avg_rating=3.5, n_ratings=80, abv=4.5),
         # Recipe + user
         Recipe(id=1001, name="Grilled Ribeye",
                ingredients_csv="beef,steak,garlic,butter",
@@ -103,28 +96,20 @@ def client(monkeypatch):
         # score the white wine high. Realistic semantic ordering.
         rid = getattr(recipe, "id", None)
         if rid == 1001:
-            scores = {1: 0.9, 2: 0.1, 3: 0.3, 101: 0.4, 102: 0.6, 103: 0.2}
+            scores = {1: 0.9, 2: 0.1, 3: 0.3}
         elif rid == 1002:
-            scores = {1: 0.1, 2: 0.9, 3: 0.5, 101: 0.4, 102: 0.2, 103: 0.6}
+            scores = {1: 0.1, 2: 0.9, 3: 0.5}
         else:
-            scores = {1: 0.5, 2: 0.5, 3: 0.5, 101: 0.5, 102: 0.5, 103: 0.5}
-        if kind_filter == "beer":
-            return {k: v for k, v in scores.items() if k >= 100}
+            scores = {1: 0.5, 2: 0.5, 3: 0.5}
         if kind_filter == "wine":
-            return {k: v for k, v in scores.items() if k < 100}
+            return scores
         return scores
 
     def fake_cb_for_user(user_id, db, kind_filter=None, min_rating=1.0):
         # Stub: user 42 likes beef wines; user 99 has no preference
         if user_id == 42:
-            scores = {1: 0.9, 2: 0.1, 3: 0.3, 101: 0.4, 102: 0.6, 103: 0.2}
-        else:
-            return {}
-        if kind_filter == "beer":
-            return {k: v for k, v in scores.items() if k >= 100}
-        if kind_filter == "wine":
-            return {k: v for k, v in scores.items() if k < 100}
-        return scores
+            return {1: 0.9, 2: 0.1, 3: 0.3}
+        return {}
 
     monkeypatch.setattr(drinks_router, "cb_for_recipe", fake_cb_for_recipe)
     monkeypatch.setattr(drinks_router, "cb_for_user",   fake_cb_for_user)
@@ -163,23 +148,17 @@ def test_ranked_no_expert_in_path_b(client):
         assert item["expert_boost"] == 0.0
 
 
-def test_ranked_kind_beer_returns_only_beer(client):
-    r = client.get("/drinks/ranked", params={"user_id": 42, "kind": "beer"})
-    data = r.json()
-    assert all(x["kind"] == "beer" for x in data)
-
-
 def test_ranked_kind_wine_returns_only_wine(client):
     r = client.get("/drinks/ranked", params={"user_id": 42, "kind": "wine"})
     data = r.json()
     assert all(x["kind"] == "wine" for x in data)
 
 
-def test_ranked_kind_all_returns_mixed(client):
+def test_ranked_kind_all_returns_wine(client):
     r = client.get("/drinks/ranked", params={"user_id": 42, "kind": "all"})
     data = r.json()
     kinds = {x["kind"] for x in data}
-    assert "beer" in kinds and "wine" in kinds
+    assert kinds == {"wine"}
 
 
 def test_ranked_unknown_user_returns_404(client):
@@ -244,9 +223,9 @@ def test_search_by_name_substring(client):
 
 
 def test_search_by_style(client):
-    r = client.get("/drinks/search", params={"q": "pilsner"})
+    r = client.get("/drinks/search", params={"q": "sparkling"})
     data = r.json()
-    assert any("Pilsner" in (d["style"] or "") for d in data)
+    assert any("Sparkling" in (d["style"] or "") for d in data)
 
 
 def test_search_kind_filter(client):
@@ -258,7 +237,7 @@ def test_search_kind_filter(client):
 
 def test_search_empty_query_returns_all(client):
     r = client.get("/drinks/search", params={"q": "", "limit": 100})
-    assert len(r.json()) == 6
+    assert len(r.json()) == 3
 
 
 # ── GET /drinks/{drink_id} ──────────────────────────────────────────────

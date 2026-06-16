@@ -20,7 +20,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.db.models import Base, Beer, Wine, DrinkEvent, Recipe, User
+from backend.db.models import Base, Wine, DrinkEvent, Recipe, User
 from backend.services.drinks import synthesizer as drink_synthesizer
 
 
@@ -38,13 +38,6 @@ def _seed(db):
         Wine(id=3, name="Random Wine", style="Sparkling",
              grapes_csv="Chardonnay", harmonize_csv="Appetizer",
              avg_rating=4.0, n_ratings=10),
-        # Beers (stout matches chocolate, IPA matches spicy, pilsner matches nothing)
-        Beer(id=101, name="Big Stout",    style="Russian Imperial Stout",
-             avg_rating=4.3, n_ratings=200),
-        Beer(id=102, name="Hop Punch IPA", style="American IPA",
-             avg_rating=4.1, n_ratings=150),
-        Beer(id=103, name="Light Lager",   style="Pilsner",
-             avg_rating=3.5, n_ratings=80),
         # Recipes
         Recipe(id=1001, name="Beef Stew", ingredients_csv="beef,onion,garlic,potato",
                tags_csv="american,beef"),
@@ -76,9 +69,7 @@ def db_session(monkeypatch):
 
     def fake_cb_for_recipe(recipe, kind_filter=None):
         # Default: zero CB signal across the board. Tests can override.
-        all_ids = {1: 0.0, 2: 0.0, 3: 0.0, 101: 0.0, 102: 0.0, 103: 0.0}
-        if kind_filter == "beer":
-            return {d: s for d, s in all_ids.items() if d >= 100}
+        all_ids = {1: 0.0, 2: 0.0, 3: 0.0}
         if kind_filter == "wine":
             return {d: s for d, s in all_ids.items() if d < 100}
         return all_ids
@@ -153,25 +144,12 @@ def test_beef_recipe_picks_beef_wine(db_session):
     assert 2 not in wine_event_ids  # Fish Wine did NOT get picked (only 3 wines, but Fish should rank lowest for beef)
 
 
-def test_chocolate_recipe_picks_stout_via_expert_rules(db_session):
-    """Chocolate recipe → Big Stout should be among the picks (stout+chocolate rule)."""
-    drink_synthesizer.maybe_synthesize_on_recipe_rating(
-        user_id=42, recipe_id=1003, rating=5.0, db=db_session
-    )
-    beer_event_ids = {
-        e.drink_id for e in db_session.query(DrinkEvent).all() if e.drink_id >= 100
-    }
-    assert 101 in beer_event_ids   # Big Stout matched chocolate via expert rule
-
-
 def test_caps_at_n_per_kind(db_session):
     """No more than N_SYNTHETIC_PER_KIND events per kind."""
     drink_synthesizer.maybe_synthesize_on_recipe_rating(
         user_id=42, recipe_id=1001, rating=5.0, db=db_session
     )
-    n_beer = db_session.query(DrinkEvent).filter(DrinkEvent.drink_id >= 100).count()
     n_wine = db_session.query(DrinkEvent).filter(DrinkEvent.drink_id < 100).count()
-    assert n_beer <= drink_synthesizer.N_SYNTHETIC_PER_KIND
     assert n_wine <= drink_synthesizer.N_SYNTHETIC_PER_KIND
 
 

@@ -9,7 +9,6 @@ Tables:
     Recipe      -- seeded from Food.com CSV; never written by the app
     UserEvent   -- every cook/skip/rate action (feeds beta_updater)
     Drink       -- parent drink catalog (shared columns)
-    Beer        -- beer-specific attributes (joined to Drink)
     Wine        -- wine-specific attributes (joined to Drink)
     DrinkEvent  -- every drink rating (explicit or synthesizer-derived)
 """
@@ -121,13 +120,12 @@ class UserEvent(Base):
 
 class Drink(Base):
     """
-    Parent table for all drinks — shared columns across beer and wine.
-    Uses joined table inheritance: Beer and Wine extend this with
-    kind-specific columns in their own tables.
+    Parent table for all drinks — shared columns.
+    Uses joined table inheritance: Wine extends this with
+    kind-specific columns in its own table.
 
     Query all drinks  → query Drink
     Query wines only  → query Wine (auto-joins drinks + wines)
-    Query beers only  → query Beer (auto-joins drinks + beers)
     """
     __tablename__ = "drinks"
     __mapper_args__ = {
@@ -136,7 +134,7 @@ class Drink(Base):
     }
 
     id                = Column(Integer, primary_key=True, index=True)
-    kind              = Column(String, nullable=False, index=True)   # "beer" | "wine"
+    kind              = Column(String, nullable=False, index=True)   # "wine"
     name              = Column(String, nullable=False, index=True)
     producer          = Column(String, nullable=True)                # winery / brewery
     country           = Column(String, nullable=True)
@@ -146,19 +144,6 @@ class Drink(Base):
     n_ratings         = Column(Integer, default=0)
     harmonize_csv     = Column(Text,   nullable=True)                # comma-sep food pairings
     review_tokens_csv = Column(Text,   nullable=True)                # CB signal tokens
-
-
-class Beer(Drink):
-    """Beer-specific attributes. Joined to drinks on id."""
-    __tablename__ = "beers"
-    __mapper_args__ = {"polymorphic_identity": "beer"}
-
-    id             = Column(Integer, ForeignKey("drinks.id"), primary_key=True)
-    ibu            = Column(Float,  nullable=True)
-    avg_aroma      = Column(Float,  nullable=True)
-    avg_taste      = Column(Float,  nullable=True)
-    avg_palate     = Column(Float,  nullable=True)
-    avg_appearance = Column(Float,  nullable=True)
 
 
 class Wine(Drink):
