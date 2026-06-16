@@ -12,8 +12,22 @@ services:
       # DB and trained models persist across restarts
       - ./fridge2fork.db:/app/fridge2fork.db
       - ./models:/app/models
+      # Dataset CSVs persist on the host (downloaded once, reused on rebuild)
+      - ./data:/app/data
+      # Kaggle API credentials (read-only) so the training pipeline can download
+      # the Food.com / drink datasets from inside the container.
+      # Put your token at ~/.kaggle/kaggle.json on the host first.
+      - ${HOME}/.kaggle:/root/.kaggle:ro
     environment:
       - DATABASE_URL=sqlite:///./fridge2fork.db
+      # Vision scanning (optional). Provide a key to enable real photo scans.
+      - VISION_PROVIDER=${VISION_PROVIDER:-gemini}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Point Python's requests/urllib3 at the system CA bundle so Kaggle
+      # downloads work inside the slim container.
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+      - SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s

@@ -13,8 +13,13 @@ Then open:
 
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Load environment variables from a .env file at the project root (if present)
+# so vision API keys (GEMINI_API_KEY / OPENAI_API_KEY) are available to the app.
+load_dotenv()
 
 from backend.db.database import init_db
 from backend.routers import drinks, pantry, recipes, users, shopping

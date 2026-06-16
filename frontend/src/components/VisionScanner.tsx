@@ -153,7 +153,7 @@ export function VisionScanner({ userId, onConfirmed, demoMode = false }: Props) 
         )}
         <div className="spinner" style={{ margin: '0 auto 12px' }} />
         <p style={{ fontSize: 14, color: 'var(--gray-600)' }}>
-          {demoMode ? 'Loading demo items…' : 'Scanning with GPT-4o vision…'}
+          {demoMode ? 'Loading demo items…' : 'Scanning your photo…'}
         </p>
       </div>
     )

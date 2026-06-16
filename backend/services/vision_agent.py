@@ -58,6 +58,14 @@ try:
 except ImportError:
     _openai_available = False
 
+# google-genai is optional — only needed if using the Gemini vision provider
+try:
+    from google import genai
+    from google.genai import types as genai_types
+    _gemini_available = True
+except ImportError:
+    _gemini_available = False
+
 
 # ── system prompt ─────────────────────────────────────────────────────────
 
@@ -68,22 +76,24 @@ Your job: identify every food product visible in the image.
 Return ONLY a valid JSON array. No preamble, no markdown, no explanation.
 
 Each element must have exactly these fields:
-  "raw_name"    : string  - product name as it appears on the packaging (e.g. "Tnuva 3% Milk")
-  "expiry_date" : string or null - expiry/best-before date in format "YYYY-MM-DD", null if not readable
-  "quantity"    : string or null - quantity/volume if visible (e.g. "500ml", "6 eggs"), null if not visible
+  "raw_name"          : string  - product name as it appears on the packaging (e.g. "Tnuva 3% Milk")
+  "generic_ingredient": string  - the generic food category, stripped of brand, fat percentage, and packaging details (e.g. "milk" for "Tnuva 3% Milk", "yogurt" for "Danone 0% Greek Yogurt")
+  "expiry_date"       : string or null - expiry/best-before date in format "YYYY-MM-DD", null if not readable
+  "quantity"          : string or null - quantity/volume if visible (e.g. "500ml", "6 eggs"), null if not visible
 
 Rules:
 - Only include items you can clearly see in the image
 - Do NOT invent items that aren't visible
 - Do NOT guess expiry dates — return null if you cannot read it
+- For generic_ingredient, always reduce to the simplest common ingredient name (milk 1%/2%/3% are all "milk")
 - If the image contains no food products, return []
 - Return [] if the image is not a fridge or pantry photo
 
 Example output:
 [
-  {"raw_name": "Tnuva 3% Milk", "expiry_date": "2025-05-10", "quantity": "500ml"},
-  {"raw_name": "Free Range Eggs", "expiry_date": null, "quantity": "6"},
-  {"raw_name": "Heinz Tomato Ketchup", "expiry_date": "2026-01-15", "quantity": "300ml"}
+  {"raw_name": "Tnuva 3% Milk", "generic_ingredient": "milk", "expiry_date": "2025-05-10", "quantity": "500ml"},
+  {"raw_name": "Free Range Eggs", "generic_ingredient": "eggs", "expiry_date": null, "quantity": "6"},
+  {"raw_name": "Heinz Tomato Ketchup", "generic_ingredient": "tomato ketchup", "expiry_date": "2026-01-15", "quantity": "300ml"}
 ]"""
 
 
@@ -257,12 +267,48 @@ def _call_vision(client: 'OpenAI', image_bytes: bytes) -> list[dict]:
     return items
 
 
+# ── Gemini 2.5 Flash vision call ───────────────────────────────────────────
+
+def _call_vision_gemini(client: 'genai.Client', image_bytes: bytes) -> list[dict]:
+    """
+    Send image to Gemini 2.5 Flash and return the parsed JSON list.
+
+    Uses response_mime_type='application/json', which forces the model to
+    emit syntactically valid JSON (no markdown fences to strip).
+    Raises ValueError if the response is not valid JSON.
+    """
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=[
+            genai_types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg'),
+            'Scan this image for food products.',
+        ],
+        config=genai_types.GenerateContentConfig(
+            system_instruction=_SYSTEM_PROMPT,
+            response_mime_type='application/json',
+        ),
+    )
+
+    raw_text = response.text or '[]'
+
+    try:
+        items = json.loads(raw_text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f'Gemini returned invalid JSON: {e}\nRaw: {raw_text[:200]}')
+
+    if not isinstance(items, list):
+        return []
+
+    return items
+
+
 # ── main entry point ───────────────────────────────────────────────────────
 
 def scan_image(
     image_bytes: bytes,
     api_key: Optional[str] = None,
     canonicalizer: Optional[IngredientCanonicalizer] = None,
+    provider: str = 'openai',
 ) -> list[dict]:
     """
     Scan a fridge/pantry photo and return a list of pantry items ready
@@ -270,8 +316,11 @@ def scan_image(
 
     Args:
         image_bytes:    raw bytes of a JPEG/PNG photo
-        api_key:        OpenAI API key (falls back to OPENAI_API_KEY env var)
+        api_key:        vision API key. For provider='openai' falls back to
+                        OPENAI_API_KEY; for provider='gemini' falls back to
+                        GEMINI_API_KEY.
         canonicalizer:  pre-built canonicalizer (None = text cleaning only)
+        provider:       'openai' (GPT-4o) or 'gemini' (Gemini 2.5 Flash)
 
     Returns:
         list of dicts, each matching the PantryItemIn schema:
@@ -283,26 +332,40 @@ def scan_image(
         }
 
     Raises:
-        RuntimeError: if OpenAI is not installed or API key is missing
-        ValueError:   if GPT-4o returns malformed JSON
+        RuntimeError: if the provider SDK is not installed or API key is missing
+        ValueError:   if the model returns malformed JSON
     """
-    if not _openai_available:
-        raise RuntimeError(
-            'openai package not installed. Run: pip install openai'
-        )
-
     import os
-    key = api_key or os.environ.get('OPENAI_API_KEY')
-    if not key:
-        raise RuntimeError(
-            'OPENAI_API_KEY not set. Set it as an environment variable '
-            'or pass api_key= to scan_image().'
-        )
 
-    client = OpenAI(api_key=key)
-    canon  = canonicalizer or IngredientCanonicalizer()
+    provider = (provider or 'openai').lower()
+    canon = canonicalizer or IngredientCanonicalizer()
 
-    raw_items = _call_vision(client, image_bytes)
+    if provider == 'gemini':
+        if not _gemini_available:
+            raise RuntimeError(
+                'google-genai package not installed. Run: pip install google-genai'
+            )
+        key = api_key or os.environ.get('GEMINI_API_KEY')
+        if not key:
+            raise RuntimeError(
+                'GEMINI_API_KEY not set. Set it as an environment variable '
+                'or pass api_key= to scan_image().'
+            )
+        client = genai.Client(api_key=key)
+        raw_items = _call_vision_gemini(client, image_bytes)
+    else:
+        if not _openai_available:
+            raise RuntimeError(
+                'openai package not installed. Run: pip install openai'
+            )
+        key = api_key or os.environ.get('OPENAI_API_KEY')
+        if not key:
+            raise RuntimeError(
+                'OPENAI_API_KEY not set. Set it as an environment variable '
+                'or pass api_key= to scan_image().'
+            )
+        client = OpenAI(api_key=key)
+        raw_items = _call_vision(client, image_bytes)
 
     results = []
     for item in raw_items:
@@ -310,7 +373,10 @@ def scan_image(
         if not raw_name:
             continue
 
-        ingredient = canon.canonicalize(raw_name)
+        # Prefer the model's generic ingredient (e.g. "milk" for "Tnuva 3% Milk"),
+        # then refine it onto the recipe vocabulary via the canonicalizer.
+        generic = (item.get('generic_ingredient') or '').strip()
+        ingredient = canon.canonicalize(generic or raw_name)
 
         # Validate expiry date format
         expiry = item.get('expiry_date')

@@ -24,6 +24,7 @@ from backend.services.vision_agent import (
     _clean_raw_name,
     IngredientCanonicalizer,
     mock_scan,
+    scan_image,
 )
 from backend.canonicalizer.ingredient_map import (
     clean_product_name,
@@ -269,3 +270,90 @@ class TestExtractPrimaryIngredient:
         product = {"ingredients_tags": ["en:tomato-paste"]}
         result  = _extract_primary_ingredient(product)
         assert "en:" not in (result or "")
+
+
+# ── scan_image provider dispatch + generic_ingredient ─────────────────────
+
+class TestScanImageGeneric:
+    """
+    Exercises scan_image's post-processing (provider dispatch + canonicalization)
+    without any network call, by monkeypatching the model-call functions.
+    """
+
+    VOCAB = SAMPLE_VOCAB
+
+    def test_gemini_prefers_generic_ingredient(self, monkeypatch):
+        import backend.services.vision_agent as va
+
+        # milk 3% should be labelled "milk" via the model's generic_ingredient
+        fake_items = [
+            {"raw_name": "Tnuva 3% Milk", "generic_ingredient": "milk",
+             "expiry_date": "2026-05-10", "quantity": "500ml"},
+        ]
+        monkeypatch.setattr(va, "_gemini_available", True)
+        monkeypatch.setattr(va, "genai", type("G", (), {
+            "Client": staticmethod(lambda api_key=None: object())
+        }))
+        monkeypatch.setattr(va, "_call_vision_gemini", lambda client, b: fake_items)
+
+        out = scan_image(
+            image_bytes=b"x",
+            api_key="dummy",
+            canonicalizer=IngredientCanonicalizer(vocab=self.VOCAB),
+            provider="gemini",
+        )
+        assert len(out) == 1
+        assert out[0]["ingredient"] == "milk"
+        assert out[0]["raw_name"] == "Tnuva 3% Milk"
+        assert out[0]["expiry_date"] == "2026-05-10"
+
+    def test_falls_back_to_raw_name_without_generic(self, monkeypatch):
+        import backend.services.vision_agent as va
+
+        fake_items = [
+            {"raw_name": "Free Range Eggs", "expiry_date": None, "quantity": "6"},
+        ]
+        monkeypatch.setattr(va, "_gemini_available", True)
+        monkeypatch.setattr(va, "genai", type("G", (), {
+            "Client": staticmethod(lambda api_key=None: object())
+        }))
+        monkeypatch.setattr(va, "_call_vision_gemini", lambda client, b: fake_items)
+
+        out = scan_image(
+            image_bytes=b"x",
+            api_key="dummy",
+            canonicalizer=IngredientCanonicalizer(vocab=self.VOCAB),
+            provider="gemini",
+        )
+        assert len(out) == 1
+        assert "eggs" in out[0]["ingredient"]
+
+    def test_invalid_expiry_rejected(self, monkeypatch):
+        import backend.services.vision_agent as va
+
+        fake_items = [
+            {"raw_name": "Milk", "generic_ingredient": "milk",
+             "expiry_date": "not-a-date", "quantity": None},
+        ]
+        monkeypatch.setattr(va, "_gemini_available", True)
+        monkeypatch.setattr(va, "genai", type("G", (), {
+            "Client": staticmethod(lambda api_key=None: object())
+        }))
+        monkeypatch.setattr(va, "_call_vision_gemini", lambda client, b: fake_items)
+
+        out = scan_image(
+            image_bytes=b"x",
+            api_key="dummy",
+            canonicalizer=IngredientCanonicalizer(vocab=self.VOCAB),
+            provider="gemini",
+        )
+        assert out[0]["expiry_date"] is None
+
+    def test_missing_gemini_key_raises(self, monkeypatch):
+        import backend.services.vision_agent as va
+
+        monkeypatch.setattr(va, "_gemini_available", True)
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+        with pytest.raises(RuntimeError):
+            scan_image(image_bytes=b"x", api_key=None, provider="gemini")
