@@ -18,6 +18,8 @@ models/*.pkl
 models/*.npz
 models/*.npy
 models/*.json
+# Frozen eval splits (regenerable via build_wine_split.py)
+models/wine_split/
 
 # Data (download via data/download_foodcom.py)
 data/RAW_recipes.csv
