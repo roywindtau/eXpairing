@@ -16,7 +16,6 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from backend.services.drinks.expert_pairing import (
-    BEER_STYLE_RULES,
     MAX_BOOST,
     WINE_BOOST_PER_MATCH,
     expert_boost,
@@ -36,13 +35,6 @@ def _wine(harmonize: str, id_: int = 1) -> SimpleNamespace:
     return SimpleNamespace(
         id=id_, kind="wine", style=None,
         harmonize_csv=harmonize, name="Test Wine",
-    )
-
-
-def _beer(style: str, id_: int = 100) -> SimpleNamespace:
-    return SimpleNamespace(
-        id=id_, kind="beer", style=style,
-        harmonize_csv=None, name="Test Beer",
     )
 
 
@@ -91,57 +83,6 @@ def test_multi_word_harmonize_category_tokenized():
     assert boost >= WINE_BOOST_PER_MATCH
 
 
-# ── beer style heuristics ────────────────────────────────────────────────
-
-def test_spicy_recipe_with_ipa_gets_boost():
-    recipe = _recipe("chicken,curry,chili,onion", tags_csv="indian,spicy")
-    beer = _beer("American IPA")
-    boost = expert_boost(recipe, beer)
-    assert boost > 0
-
-
-def test_chocolate_dessert_with_stout_gets_boost():
-    recipe = _recipe("chocolate,butter,sugar,eggs", tags_csv="dessert")
-    beer = _beer("Russian Imperial Stout")
-    assert expert_boost(recipe, beer) > 0
-
-
-def test_porter_with_chocolate_gets_boost():
-    recipe = _recipe("chocolate,cream,sugar")
-    assert expert_boost(recipe, _beer("Robust Porter")) > 0
-
-
-def test_pilsner_with_fish_gets_boost():
-    recipe = _recipe("fish,lemon,salad")
-    beer = _beer("Czech Pilsner")
-    assert expert_boost(recipe, beer) > 0
-
-
-def test_steak_with_pilsner_no_boost():
-    """Pilsner + beef has no rule -> 0."""
-    recipe = _recipe("beef,steak")
-    assert expert_boost(recipe, _beer("Pilsner")) == 0.0
-
-
-def test_dessert_with_pilsner_no_boost():
-    recipe = _recipe("chocolate,sugar")
-    assert expert_boost(recipe, _beer("Pilsner")) == 0.0
-
-
-def test_unknown_style_returns_zero():
-    recipe = _recipe("chicken,curry")
-    assert expert_boost(recipe, _beer("Some Made-Up Style")) == 0.0
-
-
-def test_multiple_beer_rules_can_stack():
-    """Stout + chocolate + beef should trigger both stout rules."""
-    recipe = _recipe("beef,chocolate,butter")  # both 'beef' and 'chocolate'
-    beer = _beer("Imperial Stout")
-    boost = expert_boost(recipe, beer)
-    # one rule for chocolate (+0.10), one for beef (+0.05) = 0.15
-    assert boost >= 0.10  # at least the chocolate rule fires
-
-
 # ── edge cases ───────────────────────────────────────────────────────────
 
 def test_none_inputs_return_zero():
@@ -158,17 +99,6 @@ def test_wine_with_no_harmonize_returns_zero():
     assert expert_boost(_recipe("beef"), _wine("")) == 0.0
 
 
-def test_beer_with_no_style_returns_zero():
-    beer = SimpleNamespace(id=1, kind="beer", style=None,
-                           harmonize_csv=None, name="Mystery Beer")
-    assert expert_boost(_recipe("chicken,curry,spicy"), beer) == 0.0
-
-
-def test_rule_count_sanity():
-    """Smoke check: rule table is non-trivial."""
-    assert len(BEER_STYLE_RULES) >= 5
-
-
 # ── batch ────────────────────────────────────────────────────────────────
 
 def test_expert_boost_batch_returns_only_positive():
@@ -176,15 +106,11 @@ def test_expert_boost_batch_returns_only_positive():
     drinks = [
         _wine("Beef,Lamb",          id_=1),
         _wine("Fish,Seafood",       id_=2),
-        _beer("Russian Imperial Stout", id_=100),  # stout + beef rule fires (+0.05)
-        _beer("Pilsner",            id_=101),  # no match
     ]
     out = expert_boost_batch(recipe, drinks)
-    assert set(out.keys()) == {1, 100}
+    assert set(out.keys()) == {1}
     assert out[1] > 0
-    assert out[100] > 0
     assert 2 not in out
-    assert 101 not in out
 
 
 def test_expert_boost_batch_empty_inputs():

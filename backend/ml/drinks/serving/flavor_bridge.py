@@ -14,7 +14,6 @@ the drink documents (Step 4 builds the docs from these sources):
     Cheese, Spicy, Vegetarian, Dessert, ...
   - Wine types:               red, white, rose, sparkling, dessert
   - Wine body / acidity:      full, medium, light, crisp
-  - Beer styles:              ipa, stout, lager, pilsner, ale, wheat, sour
 
 The lexicon is hand-curated and deliberately small. Extend it when you see
 specific pairings going sideways during eval.
@@ -85,18 +84,18 @@ INGREDIENT_FLAVORS: dict[str, list[str]] = {
     "salad":    ["vegetarian", "salads", "white", "crisp", "light"],
 
     # ── spices / heat ──────────────────────────────────────────────────
-    "chili":    ["spicy", "ipa", "lager", "bold"],
-    "chile":    ["spicy", "ipa", "lager", "bold"],
+    "chili":    ["spicy", "bold"],
+    "chile":    ["spicy", "bold"],
     "pepper":   ["spicy", "bold"],
-    "jalapeno": ["spicy", "ipa", "lager"],
-    "curry":    ["spicy", "indian", "ipa"],
+    "jalapeno": ["spicy"],
+    "curry":    ["spicy", "indian"],
     "cumin":    ["spicy", "savory"],
     "paprika":  ["spicy"],
     "ginger":   ["spicy", "asian", "crisp"],
     "cinnamon": ["sweet", "dessert"],
 
     # ── sweets / desserts ──────────────────────────────────────────────
-    "chocolate": ["dessert", "sweet", "stout", "rich"],
+    "chocolate": ["dessert", "sweet", "rich"],
     "vanilla":  ["dessert", "sweet"],
     "sugar":    ["sweet"],
     "honey":    ["sweet"],

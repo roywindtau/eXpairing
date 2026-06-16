@@ -81,7 +81,7 @@ def _reset_for_tests():
 
 
 def _kind_mask(kind_filter: Optional[str]) -> np.ndarray:
-    """Boolean index over rows matching the requested kind ('beer'|'wine'|None)."""
+    """Boolean index over rows matching the requested kind ('wine'|None)."""
     if kind_filter is None:
         return np.ones(len(_kinds), dtype=bool)
     return _kinds == kind_filter
@@ -108,7 +108,7 @@ def cb_for_recipe(recipe, kind_filter: Optional[str] = None) -> dict[int, float]
     Args:
         recipe:       any object with .ingredients_csv and .tags_csv attrs
                       (Recipe ORM row or SimpleNamespace in tests)
-        kind_filter:  None | "beer" | "wine"
+        kind_filter:  None | "wine"
     Returns:
         dict[drink_id, cosine in [0,1]]   (empty if model not loaded)
     """
@@ -142,7 +142,7 @@ def cb_for_user(
     Args:
         user_id:      app-side user id
         db:           SQLAlchemy session (we query UserEvent + Recipe)
-        kind_filter:  None | "beer" | "wine"
+        kind_filter:  None | "wine"
         min_rating:   floor on rating; events below are skipped entirely
                        (default 1.0 = use all events)
 

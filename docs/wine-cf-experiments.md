@@ -171,7 +171,7 @@ tuning on this data.
 
 ---
 
-## Reusable decision procedure (for beer / future CF signals)
+## Reusable decision procedure (for future CF signals)
 
 1. **Pick the metric from the use case** — does the consumer need a *ranking* (→ NDCG) or
    a *calibrated value* (→ RMSE)? This upstream choice decides the winner.

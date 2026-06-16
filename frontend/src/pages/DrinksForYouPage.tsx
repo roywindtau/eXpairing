@@ -20,8 +20,6 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 ]
 
 const KIND_OPTIONS: { key: KindFilter; label: string; icon: string }[] = [
-  { key: 'all',  label: 'All',  icon: '🥂' },
-  { key: 'beer', label: 'Beer', icon: '🍺' },
   { key: 'wine', label: 'Wine', icon: '🍷' },
 ]
 

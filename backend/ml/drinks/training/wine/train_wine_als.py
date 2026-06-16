@@ -2,15 +2,15 @@
 train_wine_als.py
 -----------------
 Trains a confidence-weighted ALS matrix factorization model for WINE ratings,
-using the `implicit` library. This is the wine-specific counterpart to the
-beer Funk-SVD pipeline (train_cf.py --kind beer).
+using the `implicit` library.
 
 WHY ALS, NOT SVD, FOR WINE
 --------------------------
-The wine dataset is ~21M ratings, ~1.06M users, ~100K items at 0.02% density —
-14x more ratings and 10x sparser than beer. Surprise's pure-Python SGD SVD does
-not scale to this comfortably (hours per fit, high RAM, 3x for CV). `implicit`'s
-ALS is compiled, multi-threaded, and built for exactly this sparse regime.
+The wine dataset is ~21M ratings, ~1.06M users, ~100K items at 0.02% density.
+Surprise's pure-Python SGD SVD does not scale to this comfortably (hours per
+fit, high RAM, 3x for CV). `implicit`'s ALS is compiled, multi-threaded, and
+built for exactly this sparse regime. (See docs/wine-cf-experiments.md for the
+ALS-vs-SVD ranking comparison.)
 
 EXPLICIT -> IMPLICIT CONFIDENCE
 -------------------------------

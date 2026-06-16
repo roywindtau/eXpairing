@@ -73,13 +73,13 @@ class DrinkScore:
     """
     drink_id:     int
     drink_name:   str
-    kind:         str           # "beer" | "wine"
+    kind:         str           # "wine"
     final_score:  float
     cb_score:     float
     cf_score:     float
     expert_boost: float         # 0.0 in Path B
     prior_score:  float
-    cf_strategy:  str = ""      # e.g. "biased_mf" | "popularity_cold_start"
+    cf_strategy:  str = ""      # e.g. "wine_item_sim" | "popularity_cold_start"
     # Useful for the UI:
     matched_harmonize: list[str] = field(default_factory=list)
 
@@ -93,8 +93,8 @@ def _popularity_prior(drink) -> float:
 
         prior(d) = avg_rating(d) * log(1 + n_ratings(d))
 
-    The log(n) damp keeps a beer with 5000 ratings from outweighing a
-    beer with 500 by 10×. After min-max calibration the prior contributes
+    The log(n) damp keeps a wine with 5000 ratings from outweighing a
+    wine with 500 by 10×. After min-max calibration the prior contributes
     a small but stable tiebreaker among similarly-scored candidates.
     """
     n   = float(getattr(drink, "n_ratings", None)  or 0)

@@ -16,7 +16,7 @@ Most of the plan landed as written. A few intentional divergences worth noting u
 | Expert boost range | `[-0.25, +0.25]` (with negative penalties for bad pairs) | `[0, +0.25]` (positive boosts only) | Simpler, safer; a wrong negative penalty would actively hide a drink the user might love. Bad pairings just don't get the boost, which already deprioritizes them. |
 | Score calibration | "z-score normalization" in some places | min-max across the candidate pool | Matches how the recipe stack's `services/scoring.py` actually calibrates. z-score was a doc slip. |
 | Synthesizer order vs. scoring | Step 7 then Step 6 (scoring before synthesizer) | Step 6 then Step 7 (synthesizer before scoring) | Synthesizer is self-contained and has no upstream deps on scoring — easier to ship first. |
-| Drink ratings storage | Originally "beer only in DB, wine from CSV at request time" | Both in DB | Wines from X-Wines Test are ~1k rows — trivial to store, eliminates I/O at request time. |
+| Drink ratings storage | Originally "from CSV at request time" | In DB | Wines from X-Wines Test are ~1k rows — trivial to store, eliminates I/O at request time. |
 | Dataset scale | Originally targeted X-Wines Slim (1k wines, 150k ratings) | Shipped on X-Wines Test (100 wines, 1k ratings) | Functional logic first; Slim/Full upgrade is a future-steps item (2.1). |
 
 ---
@@ -25,7 +25,7 @@ Most of the plan landed as written. A few intentional divergences worth noting u
 
 **Files:** `data/download_drinks.py`, `backend/db/models.py` (added `Drink`, `DrinkEvent`), `backend/db/seed_drinks.py`, `backend/db/seed_drink_ratings.py`, `tests/test_seed_drinks.py`.
 
-**Notes:** Both beer and wine data live in SQLite. Beer users get `app_user_id = idx + 100_000` (where `idx` is the seed-time profilename-to-int mapping); wine users get `app_user_id = uid + 200_000`. Both seeders are idempotent.
+**Notes:** Wine data lives in SQLite. Wine users get `app_user_id = uid + 200_000`. The seeder is idempotent.
 
 ---
 
@@ -45,19 +45,18 @@ Most of the plan landed as written. A few intentional divergences worth noting u
 
 ---
 
-## Step 4 — Drink CF (train SVD + item-sim + cold-start + serve) ✅
+## Step 4 — Wine CF (train + item-sim + cold-start + serve) ✅
 
-**Files:** `backend/ml/train_drink_cf.py`, `backend/ml/drink_item_similarity.py`, `backend/ml/drink_cold_start.py`, `backend/ml/serve_drink_cf.py`, `tests/test_drink_cf.py`.
+**Files:** `backend/ml/drinks/training/wine/train_wine_als.py`, `backend/ml/drinks/training/item_similarity.py`, `backend/ml/drinks/serving/cold_start.py`, `backend/ml/drinks/serving/serve_cf.py`.
 
-**Notes:** Standard Surprise SVD trained on **non-synthetic beer ratings only** (wines too sparse). Item-sim built per kind with mean-centering: beer requires ≥5 ratings, wine ≥2 (looser threshold for the tiny Test slice). `serve_drink_cf.get_cf_scores` dispatches by `(n_explicit, kind)`:
+**Notes:** The wine CF model is confidence-weighted **ALS** (see `docs/wine-cf-experiments.md`); ALS beat Funk SVD on ranking metrics for the implicit-feedback wine data. At serve time, wine is too sparse for per-user matrix factorization, so `serve_drink_cf.get_cf_scores` dispatches by `n_explicit`:
 
-|  | beer candidate | wine candidate |
-|---|---|---|
-| 0 explicit | `bayesian_popularity` | `bayesian_popularity` |
-| 1–4 explicit | `(1−α)·item_sim + α·SVD` | `item_sim_from_history` |
-| ≥ 5 explicit | pure `SVD` | `item_sim_from_history` |
+|  | wine candidate |
+|---|---|
+| 0 explicit | `bayesian_popularity` |
+| ≥ 1 explicit | `item_sim_from_history` |
 
-The item-sim user-history seed includes synthetic events; SVD training excludes them.
+Item-sim is built with mean-centering and a ≥2-rating threshold (looser, for the tiny Test slice). The item-sim user-history seed includes synthetic events.
 
 ---
 
@@ -65,7 +64,7 @@ The item-sim user-history seed includes synthetic events; SVD training excludes 
 
 **Files:** `backend/services/expert_pairing.py`, `tests/test_expert_pairing.py`.
 
-**Notes:** Two layers — wine Harmonize CSV match (`WINE_BOOST_PER_MATCH = 0.10` per token overlap) and `BEER_STYLE_RULES` (hand-coded tuples mapping beer styles to recipe tokens). Total capped at `MAX_BOOST = 0.25`. Boost is **non-negative** only. Path A only.
+**Notes:** Wine Harmonize CSV match (`WINE_BOOST_PER_MATCH = 0.10` per token overlap), capped at `MAX_BOOST = 0.25`. Boost is **non-negative** only. Path A only.
 
 ---
 
@@ -108,7 +107,7 @@ Also: `sqlite:///:memory:` creates a fresh DB per connection. Tests use `StaticP
 
 **Files:** `frontend/src/api/drinks.ts`, `frontend/src/components/DrinkCard.tsx`, `frontend/src/pages/DrinksForYouPage.tsx`. Modified `frontend/src/App.tsx` to register the `/drinks` route and nav link.
 
-**Notes:** Mirrors `RecipeFeedPage`. Kind toggle (All / Beer / Wine), sort dropdown (Total / Taste / Crowd / Popularity), CF-strategy banner (cold vs warm). Each card shows a `whyForYou()` reason line ("🍽️ Matches your food taste", "🤝 Similar to drinks you've liked", etc.) — translates the dominant signal into plain English so the algorithm name never leaks to the UI.
+**Notes:** Mirrors `RecipeFeedPage`. Sort dropdown (Total / Taste / Crowd / Popularity), CF-strategy banner (cold vs warm). Each card shows a `whyForYou()` reason line ("🍽️ Matches your food taste", "🤝 Similar to drinks you've liked", etc.) — translates the dominant signal into plain English so the algorithm name never leaks to the UI.
 
 Drink ratings flow through `POST /drink-events`. No skip event (drink ratings are pure positive signal; dismiss is client-side only).
 

@@ -1,25 +1,15 @@
 """
 drink_item_similarity.py
 ------------------------
-Builds two item-item cosine similarity matrices (beer + wine) from real
+Builds an item-item cosine similarity matrix for wine from real
 (non-synthetic) DrinkEvent ratings. Mirrors backend/ml/item_similarity.py.
-
-Why two matrices instead of one combined
-----------------------------------------
-A beer and a wine are never co-rated by the same review datasets (each
-rating dataset is single-kind), so cross-kind similarities would be
-structurally zero. Keeping them separate makes the matrices smaller, the
-serving code clearer (route by kind), and avoids accidental cross-domain
-neighborhoods.
 
 Synthetic ratings are EXCLUDED
 ------------------------------
-Same reasoning as train_drink_cf.py: real expressed preferences only.
+Real expressed preferences only.
 
 Saved artifacts
 ---------------
-    models/drink_sim_beer.npz       sparse top-K beer sim matrix
-    models/drink_sim_beer_ids.npy   beer drink_id per row/col
     models/drink_sim_wine.npz       sparse top-K wine sim matrix
     models/drink_sim_wine_ids.npy   wine drink_id per row/col
     models/drink_sim_meta.json      counts + thresholds + timestamp
@@ -46,14 +36,11 @@ from backend.db.database import SessionLocal
 from backend.db.models import Drink, DrinkEvent
 
 MODELS_DIR = Path("models")
-SIM_BEER     = MODELS_DIR / "drink_sim_beer.npz"
-SIM_BEER_IDS = MODELS_DIR / "drink_sim_beer_ids.npy"
 SIM_WINE     = MODELS_DIR / "drink_sim_wine.npz"
 SIM_WINE_IDS = MODELS_DIR / "drink_sim_wine_ids.npy"
 SIM_META     = MODELS_DIR / "drink_sim_meta.json"
 
 TOP_K          = 50
-MIN_RATINGS_BEER = 5    # match recipe item_similarity.py
 MIN_RATINGS_WINE = 2    # X-Wines Test is small — 5 would drop almost all wines
 CHUNK_SIZE     = 200
 
@@ -150,14 +137,6 @@ def _chunked_sparse_topk(
 def train() -> None:
     MODELS_DIR.mkdir(exist_ok=True)
 
-    print("\n=== Beer item-similarity ===")
-    beer_df = _load_kind_ratings("beer")
-    print(f"  Loaded {len(beer_df):,} beer ratings.")
-    beer_sim, beer_ids = _build_sim(beer_df, MIN_RATINGS_BEER)
-    sp.save_npz(SIM_BEER, beer_sim)
-    np.save(SIM_BEER_IDS, np.array(beer_ids, dtype=np.int64))
-    print(f"  Saved -> {SIM_BEER}  ({beer_sim.shape}, {beer_sim.nnz:,} nnz)")
-
     print("\n=== Wine item-similarity ===")
     wine_df = _load_kind_ratings("wine")
     print(f"  Loaded {len(wine_df):,} wine ratings.")
@@ -168,12 +147,9 @@ def train() -> None:
 
     meta = {
         "trained_at":      datetime.now().isoformat(),
-        "n_beers":         len(beer_ids),
         "n_wines":         len(wine_ids),
-        "beer_sim_nnz":    int(beer_sim.nnz),
         "wine_sim_nnz":    int(wine_sim.nnz),
         "top_k":           TOP_K,
-        "min_ratings_beer": MIN_RATINGS_BEER,
         "min_ratings_wine": MIN_RATINGS_WINE,
         "synthetic_excluded": True,
         "algorithm":       "item-based CF (cosine, mean-centered, sparse top-K)",

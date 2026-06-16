@@ -89,11 +89,11 @@ def _kind_to_filter(kind: Optional[str]) -> Optional[str]:
     k = kind.strip().lower()
     if k in ("", "all", "any"):
         return None
-    if k in ("beer", "wine"):
+    if k == "wine":
         return k
     raise HTTPException(
         status_code=422,
-        detail=f"kind must be 'beer', 'wine', or 'all' (got '{kind}')",
+        detail=f"kind must be 'wine' or 'all' (got '{kind}')",
     )
 
 
@@ -121,9 +121,7 @@ def _split_cb_by_kind(
     if not cb_available():
         return {}
     if kind_filter is None:
-        beer = cb_for_recipe(recipe, kind_filter="beer")
-        wine = cb_for_recipe(recipe, kind_filter="wine")
-        return {**beer, **wine}
+        return cb_for_recipe(recipe, kind_filter="wine")
     return cb_for_recipe(recipe, kind_filter=kind_filter)
 
 
@@ -165,14 +163,14 @@ def _count_user_explicit_drink_ratings(db: Session, user_id: int) -> int:
 @router.get("/drinks/ranked", response_model=list[DrinkScoreOut])
 def get_ranked_drinks(
     user_id: int = Query(...),
-    kind:    Optional[str] = Query(None, description="'beer' | 'wine' | 'all'"),
+    kind:    Optional[str] = Query(None, description="'wine' | 'all'"),
     top_n:   int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
     """
     Path B — "Drinks For You". Ranks drinks by:
       - CB score from the user's RECIPE rating history (via flavor_bridge)
-      - CF score routed by drink rating count (popularity / item-sim / SVD)
+      - CF score routed by drink rating count (popularity / item-sim)
       - Popularity prior tiebreaker
 
     No expert boost (no specific recipe to pair against).
@@ -190,7 +188,6 @@ def get_ranked_drinks(
     cb_scores: dict[int, float] = {}
     if cb_available():
         if kind_filter is None:
-            cb_scores.update(cb_for_user(user_id, db, kind_filter="beer"))
             cb_scores.update(cb_for_user(user_id, db, kind_filter="wine"))
         else:
             cb_scores = cb_for_user(user_id, db, kind_filter=kind_filter)
@@ -219,13 +216,13 @@ def get_ranked_drinks(
 def get_drink_pairings(
     recipe_id: int,
     user_id:   int = Query(...),
-    kind:      Optional[str] = Query(None, description="'beer' | 'wine' | 'all'"),
+    kind:      Optional[str] = Query(None, description="'wine' | 'all'"),
     top_n:     int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
     """
     Path A — given a specific recipe, suggest drinks. Adds the expert-rules
-    boost (Harmonize match + beer style heuristics) on top of CB + CF.
+    boost (Harmonize match) on top of CB + CF.
     """
     recipe = db.get(Recipe, recipe_id)
     if not recipe:
@@ -248,7 +245,7 @@ def get_drink_pairings(
     n_explicit = _count_user_explicit_drink_ratings(db, user_id)
     cf_strategies = {d.id: cf_strategy_name(n_explicit, d.kind) for d in candidates}
 
-    # Expert: Harmonize match + beer style heuristics
+    # Expert: Harmonize match
     expert = expert_boost_batch(recipe, candidates)
 
     ranked = rank_drinks_for_recipe(
@@ -323,14 +320,8 @@ def get_drink_detail(drink_id: int, db: Session = Depends(get_db)):
         "abv":             drink.abv,
         "avg_rating":      drink.avg_rating,
         "n_ratings":       drink.n_ratings,
-        # beer-specific (None for wines)
         "style":           drink.style,
-        "ibu":             getattr(drink, "ibu", None),
-        "avg_aroma":       getattr(drink, "avg_aroma", None),
-        "avg_taste":       getattr(drink, "avg_taste", None),
-        "avg_palate":      getattr(drink, "avg_palate", None),
-        "avg_appearance":  getattr(drink, "avg_appearance", None),
-        # wine-specific (None for beers)
+        # wine-specific
         "grapes_csv":      getattr(drink, "grapes_csv", None),
         "region":          getattr(drink, "region", None),
         "body":            getattr(drink, "body", None),
@@ -348,7 +339,7 @@ def log_drink_event(payload: DrinkEventIn, db: Session = Depends(get_db)):
 
     Deliberately NO synthesizer hook here — only RECIPE ratings trigger
     drink synthesis. Drink ratings are the user's explicit signal and feed
-    the SVD (beer) / item-sim (wine) paths directly.
+    the item-sim (wine) path directly.
     """
     if payload.event_type != "rate":
         raise HTTPException(422, detail="event_type must be 'rate' in v1")

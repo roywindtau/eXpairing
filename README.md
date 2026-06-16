@@ -46,16 +46,16 @@ train_pipeline.sh  one-shot training pipeline (recipes + drinks)
 tests/             530+ backend tests (unit + behavioral integration) + 63 E2E
 ```
 
-## Drink recommender (beer + wine)
+## Wine recommender
 
-A second recommender module pairs **drinks** to the user, in two contexts:
+A second recommender module pairs **wines** to the user, in two contexts:
 
-- **Path A — Pair with a recipe.** On any recipe detail page, a "Pair this with…" panel shows 4–6 ranked drinks for that specific dish. Surfaces an expert-rules boost (X-Wines Harmonize match for wines, hand-coded style heuristics for beers).
-- **Path B — Drinks For You.** A standalone `/drinks` page ranks drinks by the user's food + drink history. Uses the same CB/CF machinery as recipes, plus a flavor-bridge lexicon that maps recipe ingredients → drink-compatible flavor tokens.
+- **Path A — Pair with a recipe.** On any recipe detail page, a "Pair this with…" panel shows 4–6 ranked wines for that specific dish. Surfaces an expert-rules boost (X-Wines Harmonize match).
+- **Path B — Drinks For You.** A standalone `/drinks` page ranks wines by the user's food + drink history. Uses the same CB/CF machinery as recipes, plus a flavor-bridge lexicon that maps recipe ingredients → wine-compatible flavor tokens.
 
 Both paths share four signal sources blended via min-max calibrated weighted sum:
-- **CB** — TF-IDF over drink descriptors (style/variety/wine type/grapes/Harmonize) bridged from the recipe or user-history side
-- **CF** — Bayesian-smoothed popularity → item-item cosine (cold-start / wines) → Surprise SVD (warm beers, ≥5 explicit ratings)
+- **CB** — TF-IDF over wine descriptors (style/variety/wine type/grapes/Harmonize) bridged from the recipe or user-history side
+- **CF** — Bayesian-smoothed popularity → item-item cosine (wine is too sparse to train matrix factorization)
 - **Expert rules** — Path A only; rule-based pairing knowledge
 - **Popularity prior** — `avg_rating · log1p(n_ratings)` tiebreaker
 
@@ -79,17 +79,11 @@ Both UI surfaces translate the dominant signal into a plain-English **"why this 
 | `GET`  | `/drinks/{drink_id}` | Drink detail |
 | `POST` | `/drink-events` | Log a drink rating (1–5 stars) |
 
-`kind` accepts `beer`, `wine`, or `all` (default). The synthesizer fires only on **recipe** rate events; drink rate events feed directly into SVD / item-sim.
+`kind` accepts `wine` or `all` (default). The synthesizer fires only on **recipe** rate events; drink rate events feed directly into item-sim.
 
 ### Datasets
 
-- **[Beer Reviews](https://www.kaggle.com/datasets/rdoume/beerreviews)** (Kaggle) — ~66k beers, ~1.5M ratings
 - **[X-Wines](https://github.com/rogerioxavier/X-Wines)** (Test slice from GitHub) — 100 wines, ~1k ratings
-
-Download both with:
-```bash
-python3 -m data.drinks.beer.download_beer
-```
 
 ### Train + try the demo
 
@@ -384,7 +378,7 @@ backend/
     vision_agent.py          GPT-4o vision + ingredient canonicalization
     drink_scoring.py         Drink ranking — Path A + Path B formulas
     drink_synthesizer.py     Recipe-rate ≥ 4.0 → synthetic DrinkEvents (cold start)
-    expert_pairing.py        Rule-based expert boost (Harmonize + beer style heuristics)
+    expert_pairing.py        Rule-based expert boost (X-Wines Harmonize match)
   ml/
     cold_start.py            Preference-seeded cold start CF (with fallback)
     item_similarity.py       Sparse item-item similarity matrix (training)
@@ -395,12 +389,11 @@ backend/
     user_vector.py           Pantry → TF-IDF vector utility
     evaluate.py              RMSE, Precision@K, Recall@K, ablation
     flavor_bridge.py         Ingredient → drink-side flavor token lexicon
-    train_drink_cb.py        Drink TF-IDF training (style + variety + Harmonize)
-    train_drink_cf.py        Drink SVD training (beers only — wines too sparse)
-    drink_item_similarity.py Drink item-item cosine matrices (one per kind)
+    train_drink_cb.py        Wine TF-IDF training (style + variety + Harmonize)
+    drink_item_similarity.py Wine item-item cosine matrix
     drink_cold_start.py      Bayesian popularity + item-sim seed scores
-    serve_drink_cb.py        Drink CB serving — cb_for_recipe + cb_for_user
-    serve_drink_cf.py        Drink CF serving — routes by warmth + kind
+    serve_drink_cb.py        Wine CB serving — cb_for_recipe + cb_for_user
+    serve_drink_cf.py        Wine CF serving — popularity + item-sim
   db/
     models.py                SQLAlchemy ORM (User, PantryItem, Recipe, UserEvent,
                                ShoppingListItem, Drink, DrinkEvent)
@@ -409,8 +402,7 @@ backend/
     seed_recipes.py          Load Food.com CSV → Recipe table
     seed_ratings.py          Load Food.com ratings → UserEvent table
   drinks/
-    seed_drinks.py           Load Beer Reviews → Drink table (wine pending)
-    seed_ratings.py          Load beer ratings → DrinkEvent (external users)
+    seed_wines.py            Load X-Wines → Wine table + DrinkEvent ratings
   canonicalizer/
     ingredient_map.py        Rule-based + fuzzy product name cleaner
     openfoodfacts.py         Barcode/name lookup via OFF API
@@ -458,7 +450,7 @@ frontend/e2e/
 
 data/
   download_foodcom.py        Kaggle download (Food.com)
-  download_drinks.py         Kaggle (Beer Reviews) + GitHub raw (X-Wines Test)
+  download_drinks.py         GitHub raw (X-Wines Test)
   explore_foodcom.ipynb      EDA notebook
 
 train_pipeline.sh            One-shot training pipeline (recipes + drinks,
@@ -480,12 +472,8 @@ models/                      Trained artifacts (git-ignored)
   drink_cb_matrix.npz        TF-IDF drink embeddings
   drink_cb_vectorizer.pkl    Fitted TfidfVectorizer for drinks
   drink_cb_ids.npy           Drink ID index (aligned with matrix rows)
-  drink_cb_kinds.npy         Per-row kind (beer/wine) for kind-filtered queries
+  drink_cb_kinds.npy         Per-row kind for kind-filtered queries
   drink_cb_meta.json         Trained-on counts, hyperparams
-  drink_cf_model.pkl         Surprise SVD trained on non-synthetic beer ratings
-  drink_cf_meta.json         SVD hyperparams + filtered rating counts
-  drink_sim_beer.npz         Beer item-item cosine similarity (≥5 ratings)
-  drink_sim_beer_ids.npy     Beer ID index for the beer sim matrix
   drink_sim_wine.npz         Wine item-item cosine similarity (≥2 ratings)
   drink_sim_wine_ids.npy     Wine ID index for the wine sim matrix
   drink_sim_meta.json        Filter thresholds + per-kind counts

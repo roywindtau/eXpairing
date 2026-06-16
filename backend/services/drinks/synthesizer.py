@@ -53,7 +53,7 @@ from backend.db.models import Drink, DrinkEvent, Recipe
 ENABLE_SYNTHETIC_DRINK_RATINGS = True   # kill switch
 SYNTHESIZE_THRESHOLD           = 4.0    # min recipe rating that triggers synthesis
 SYNTHETIC_RATING               = 4.0    # value written into DrinkEvent.rating
-N_SYNTHETIC_PER_KIND           = 3      # 3 beer + 3 wine = up to 6 per fire
+N_SYNTHETIC_PER_KIND           = 3      # up to 3 wine per fire
 CANDIDATE_POOL_SIZE            = 100    # pre-filter to top-N by CB before expert
 MIN_COMBINED_SCORE             = 0.05   # ignore drinks with essentially-zero affinity
 
@@ -161,7 +161,7 @@ def maybe_synthesize_on_recipe_rating(
             return 0
 
         n_inserted = 0
-        for kind in ("beer", "wine"):
+        for kind in ("wine",):
             top_ids, cb_scores = _candidate_drinks_for_kind(recipe, kind, db)
             if not top_ids:
                 continue
