@@ -8,9 +8,8 @@ Tables:
     PantryItem  -- one row per ingredient a user currently has
     Recipe      -- seeded from Food.com CSV; never written by the app
     UserEvent   -- every cook/skip/rate action (feeds beta_updater)
-    Drink       -- parent drink catalog (shared columns)
-    Wine        -- wine-specific attributes (joined to Drink)
-    DrinkEvent  -- every drink rating (explicit or synthesizer-derived)
+    Wine        -- wine catalog (single flat table)
+    WineEvent   -- every wine rating (explicit or synthesizer-derived)
 """
 
 from datetime import date
@@ -118,57 +117,42 @@ class UserEvent(Base):
     user = relationship("User", back_populates="events")
 
 
-class Drink(Base):
+class Wine(Base):
     """
-    Parent table for all drinks — shared columns.
-    Uses joined table inheritance: Wine extends this with
-    kind-specific columns in its own table.
-
-    Query all drinks  → query Drink
-    Query wines only  → query Wine (auto-joins drinks + wines)
+    Wine catalog — one flat table. (Was previously split into a polymorphic
+    Drink parent + Wine child to support other drink types; collapsed to
+    wine-only.)
     """
-    __tablename__ = "drinks"
-    __mapper_args__ = {
-        "polymorphic_on": "kind",
-        "polymorphic_identity": "drink",
-    }
+    __tablename__ = "wines"
 
     id                = Column(Integer, primary_key=True, index=True)
-    kind              = Column(String, nullable=False, index=True)   # "wine"
     name              = Column(String, nullable=False, index=True)
-    producer          = Column(String, nullable=True)                # winery / brewery
+    producer          = Column(String, nullable=True)                # winery
     country           = Column(String, nullable=True)
-    style             = Column(String, nullable=True)                # "Red"/"IPA"/"Stout" etc.
+    style             = Column(String, nullable=True)                # "Red"/"White"/...
     abv               = Column(Float,  nullable=True)
     avg_rating        = Column(Float,  nullable=True)
     n_ratings         = Column(Integer, default=0)
     harmonize_csv     = Column(Text,   nullable=True)                # comma-sep food pairings
     review_tokens_csv = Column(Text,   nullable=True)                # CB signal tokens
+    # wine-specific attributes (were in the joined child table)
+    grapes_csv        = Column(Text,   nullable=True)                # comma-sep grape varieties
+    body              = Column(String, nullable=True)                # "Full-bodied" etc.
+    acidity           = Column(String, nullable=True)                # "High" | "Medium" | "Low"
+    region            = Column(String, nullable=True)
 
 
-class Wine(Drink):
-    """Wine-specific attributes. Joined to drinks on id."""
-    __tablename__ = "wines"
-    __mapper_args__ = {"polymorphic_identity": "wine"}
-
-    id          = Column(Integer, ForeignKey("drinks.id"), primary_key=True)
-    grapes_csv  = Column(Text,   nullable=True)                      # comma-sep grape varieties
-    body        = Column(String, nullable=True)                      # "Full-bodied" etc.
-    acidity     = Column(String, nullable=True)                      # "High" | "Medium" | "Low"
-    region      = Column(String, nullable=True)
-
-
-class DrinkEvent(Base):
+class WineEvent(Base):
     """
-    User x drink rating events.
-    `synthetic=True` rows are written by drink_synthesizer.py from high recipe
-    ratings and are EXCLUDED from CF training (see train_drink_cf.py).
+    User x wine rating events.
+    `synthetic=True` rows are written by the synthesizer from high recipe
+    ratings and are EXCLUDED from CF training.
     """
-    __tablename__ = "drink_events"
+    __tablename__ = "wine_events"
 
     id          = Column(Integer, primary_key=True, index=True)
     user_id     = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    drink_id    = Column(Integer, ForeignKey("drinks.id"), nullable=False, index=True)
+    wine_id     = Column(Integer, ForeignKey("wines.id"), nullable=False, index=True)
     event_type  = Column(String, nullable=False)        # v1: "rate" only
     rating      = Column(Float, nullable=True)
     synthetic   = Column(Boolean, default=False, nullable=False)
