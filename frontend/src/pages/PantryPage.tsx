@@ -83,7 +83,7 @@ export function PantryPage({ userId }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <h1 className="page-title" style={{ margin: 0 }}>My Pantry</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <VisionScanner userId={userId} onConfirmed={load} demoMode={!import.meta.env.VITE_OPENAI_KEY} />
+          <VisionScanner userId={userId} onConfirmed={load} demoMode={import.meta.env.VITE_VISION_DEMO === 'true'} />
           <button className="btn btn-primary" onClick={() => setAdding(a => !a)}>
             {adding ? '✕ Cancel' : '+ Add item'}
           </button>

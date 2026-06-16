@@ -16,12 +16,16 @@ rapidfuzz==3.10.0
 # Vision agent (optional — only needed if using GPT-4o scan feature)
 openai==1.51.0
 
+# Vision agent — Gemini 2.5 Flash provider (optional alternative to GPT-4o)
+google-genai>=1.0.0
+
 # Data download
-kaggle==1.6.17
+kaggle>=1.8.0
 
 # Utilities
 requests==2.32.3
 python-multipart==0.0.12
+python-dotenv==1.0.1         # loads .env file at startup (vision API keys, etc.)
 
 # Python 3.9 compatibility: enables X | None union syntax in Pydantic models
 eval_type_backport

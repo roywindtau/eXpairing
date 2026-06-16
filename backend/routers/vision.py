@@ -80,19 +80,29 @@ async def scan_fridge(photo: UploadFile = File(...)):
     The list may contain items with expiry_date=null — the UI
     should prompt the user to fill these in before confirming.
 
-    Requires OPENAI_API_KEY environment variable.
+    Provider is chosen by the VISION_PROVIDER env var ('gemini' or 'openai').
+    If unset, defaults to gemini when GEMINI_API_KEY is present, else openai.
     Falls back to mock scan in dev mode (VISION_MOCK=true).
     """
     if os.environ.get('VISION_MOCK', '').lower() in ('1', 'true', 'yes'):
         return mock_scan()
 
-    api_key = os.environ.get('OPENAI_API_KEY')
+    gemini_key = os.environ.get('GEMINI_API_KEY')
+    openai_key = os.environ.get('OPENAI_API_KEY')
+
+    # Resolve provider: explicit env var wins, else prefer whichever key exists.
+    provider = os.environ.get('VISION_PROVIDER', '').strip().lower()
+    if not provider:
+        provider = 'gemini' if gemini_key else 'openai'
+
+    api_key = gemini_key if provider == 'gemini' else openai_key
     if not api_key:
         raise HTTPException(
             status_code=503,
             detail=(
-                'OPENAI_API_KEY not set. '
-                'Set the environment variable or use GET /vision/mock for demo mode.'
+                f'No API key set for vision provider "{provider}". '
+                'Set GEMINI_API_KEY (gemini) or OPENAI_API_KEY (openai), '
+                'or use GET /vision/mock for demo mode.'
             ),
         )
 
@@ -105,11 +115,19 @@ async def scan_fridge(photo: UploadFile = File(...)):
             image_bytes=image_bytes,
             api_key=api_key,
             canonicalizer=_get_canon(),
+            provider=provider,
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        # Upstream vision provider error (e.g. Gemini/OpenAI 5xx, rate limit,
+        # network failure). Surface as 503 so the UI can prompt a retry.
+        raise HTTPException(
+            status_code=503,
+            detail=f'Vision provider "{provider}" unavailable: {e}',
+        )
 
     return items
 
