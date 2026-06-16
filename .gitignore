@@ -26,8 +26,9 @@ data/RAW_recipes.csv
 data/RAW_interactions.csv
 data/openfoodfacts_cache.json
 
-# Drink datasets (download via data/drinks/wine/download_*.py)
-data/drinks/**/*.csv
+# Wine datasets (download via data/wine/download_wines.py)
+data/wine/**/*.csv
+data/wine/*.csv
 
 # Frontend
 frontend/node_modules/

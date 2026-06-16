@@ -146,7 +146,7 @@ tuning on this data.
 - **NDCG@10 = 0.0291** (4× popularity), on the frozen leave-5-out split
 - **Artifacts:** `models/drink_wine_als_model.npz` (factors + id maps) + `_meta.json`
 
-### Code (in `backend/ml/drinks/training/wine/`)
+### Code (in `backend/ml/wine/training/`)
 - `wine_data.py` — shared data layer: load, sparsity filter, confidence matrix; holds the
   tuned `CONFIDENCE_ALPHA=5` and `SPLIT_BUILT_ALPHA=40` constants.
 - `build_wine_split.py` — builds/freezes the leave-5-out split (run once).
