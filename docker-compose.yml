@@ -6,9 +6,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    # Dev: auto-reload on code changes (nodemon-equivalent). The Dockerfile CMD
+    # stays production-safe; this override + source mount enable live editing.
+    command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     ports:
       - "8000:8000"
     volumes:
+      # Live source mount so --reload sees edits without rebuilding the image
+      - ./backend:/app/backend
       # DB and trained models persist across restarts
       - ./fridge2fork.db:/app/fridge2fork.db
       - ./models:/app/models

@@ -15,14 +15,26 @@ export interface WineOut {
   style:         string | null
   variety:       string | null
   harmonize_csv: string | null
+  acidity:       string | null
+  body:          string | null
+  region:        string | null
 }
 
 // ── API helpers ─────────────────────────────────────────────────────────────
 
-/** "Suggest me a wine" — top-N popular wines. Not personalized yet. */
-export const getRankedWines = (topN = 10) =>
+/**
+ * "Suggest me a wine" — top-N wines.
+ * With userId: personalized (style-filtered, CF+CB blend, popularity cold start).
+ * Without userId: top-N popular (back-compat).
+ */
+export const getRankedWines = (topN = 10, userId?: number, styles?: string[]) =>
   api.get<WineOut[]>('/wine/ranked', {
-    params: { top_n: topN },
+    params: {
+      top_n: topN,
+      ...(userId != null ? { user_id: userId } : {}),
+      ...(styles && styles.length ? { styles } : {}),
+    },
+    paramsSerializer: { indexes: null },   // styles=Red&styles=White
   }).then(r => r.data)
 
 export const rateWine = (userId: number, wineId: number, rating: number) =>
