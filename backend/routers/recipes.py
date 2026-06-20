@@ -49,7 +49,6 @@ from sqlalchemy.orm import Session
 from backend.db.database import get_db
 from backend.db.models import User, PantryItem, Recipe, UserEvent
 from backend.services.scoring import rank_recipes, RecipeScore
-from backend.services.wine.synthesizer import maybe_synthesize_on_recipe_rating
 from backend.ml.serve_cf import (
     get_cf_scores, cf_strategy_name, is_warm_user,
     svd_available, item_sim_available, MIN_RATINGS_FOR_CF,
@@ -409,13 +408,5 @@ def log_event(payload: EventIn, db: Session = Depends(get_db)):
     )
     db.add(event)
     db.commit()
-
-    # Drink-side side effect: if this is a high recipe rating, infer a few
-    # drink preferences for the Path-B "Drinks For You" flow. Fail-soft —
-    # the synthesizer never raises and never affects the response below.
-    if payload.event_type == "rate" and payload.rating is not None:
-        maybe_synthesize_on_recipe_rating(
-            payload.user_id, payload.recipe_id, payload.rating, db
-        )
 
     return {"status": "ok", "event_id": event.id}

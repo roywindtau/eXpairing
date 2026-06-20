@@ -120,7 +120,7 @@ class UserEvent(Base):
 class Wine(Base):
     """
     Wine catalog — one flat table. (Was previously split into a polymorphic
-    Drink parent + Wine child to support other drink types; collapsed to
+    parent + child to support multiple beverage types; collapsed to
     wine-only.)
     """
     __tablename__ = "wines"
