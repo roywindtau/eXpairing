@@ -1,26 +1,28 @@
 """
 train_cb.py
------------------
-TF-IDF content-based embeddings for every wine in the DB.
-Mirrors backend/ml/train_cb.py one-to-one but for the Wine table.
+-----------
+Precompute the structured content-based feature matrix for every wine.
 
-The vocabulary (style words, harmonize categories, wine body terms) is what
-`flavor_bridge.py` is deliberately designed to inject into recipe docs at
-query time, so the cosine in serve_cb compares wines against any recipe
-in one shot.
+NOT TF-IDF, NOT neural embeddings. X-Wines has zero free text, so each wine is
+encoded as a structured weighted vector (see memory wine-cb-design):
 
-Per-wine documents
--------------------
-Wine: "wine {style} {grapes_csv} {harmonize_csv}"
-                                                 e.g. "wine red malbec beef lamb grilled"
+    grape    multi-hot   (block unit-normalized)
+    region   one-hot on rolled-up parent (region_rollup.json), unit-length
+    acidity  ordinal     Low/Med/High -> 0/.5/1
+    body     ordinal     5 levels -> 0..1
+    abv      numeric     min-max over a clipped [5,16] band
+
+IMPORTANT: this saves the matrix UNWEIGHTED (each block normalized, no sommelier
+weights applied). Weights are applied at SERVE time so they can be retuned — or
+overridden per-user/per-request ("emphasize grape") — without recomputing 100k
+vectors. style is NOT in the matrix; it's a serve-time hard filter.
 
 Saved artifacts
 ---------------
-    models/wine_cb_matrix.npz       sparse TF-IDF matrix (n_wines x vocab)
-    models/wine_cb_ids.npy          drink_id for each row in the matrix
-    models/wine_cb_kinds.npy        "wine" for each row (object array)
-    models/wine_cb_vectorizer.pkl   fitted TfidfVectorizer
-    models/wine_cb_meta.json        training stats
+    models/wine_cb_matrix.npz    sparse unweighted matrix (n_wines x dim)
+    models/wine_cb_ids.npy       wine_id for each row
+    models/wine_cb_blocks.json   block layout + vocab (col ranges per field, index maps)
+    models/wine_cb_meta.json     stats
 
 Run:
     python -m backend.ml.wine.training.train_cb
@@ -29,124 +31,117 @@ Run:
 from __future__ import annotations
 
 import json
-import pickle
 import sys
 from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 import scipy.sparse as sp
-from sklearn.feature_extraction.text import TfidfVectorizer
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from backend.db.database import SessionLocal
 from backend.db.models import Wine
 
-MODELS_DIR        = Path("models")
-CB_MATRIX         = MODELS_DIR / "wine_cb_matrix.npz"
-CB_IDS            = MODELS_DIR / "wine_cb_ids.npy"
-CB_KINDS          = MODELS_DIR / "wine_cb_kinds.npy"
-CB_VECTORIZER     = MODELS_DIR / "wine_cb_vectorizer.pkl"
-CB_META           = MODELS_DIR / "wine_cb_meta.json"
+MODELS_DIR = Path("models")
+CB_MATRIX  = MODELS_DIR / "wine_cb_matrix.npz"
+CB_IDS     = MODELS_DIR / "wine_cb_ids.npy"
+CB_BLOCKS  = MODELS_DIR / "wine_cb_blocks.json"
+CB_META    = MODELS_DIR / "wine_cb_meta.json"
+ROLLUP     = MODELS_DIR / "region_rollup.json"
+
+ACIDITY = {"Low": 0.0, "Medium": 0.5, "High": 1.0}
+BODY = {"Very light-bodied": 0.0, "Light-bodied": 0.25, "Medium-bodied": 0.5,
+        "Full-bodied": 0.75, "Very full-bodied": 1.0}
+ABV_LO, ABV_HI = 5.0, 16.0   # clip band: raw abv range is a dirty 0..50
 
 
-def _wine_doc(d: Wine) -> str:
-    """Compose the per-wine text document fed into TF-IDF."""
-    parts: list[str] = ["wine"]
-    if d.style:
-        parts.append(d.style)
-    if d.grapes_csv:
-        parts.append(d.grapes_csv.replace(",", " "))
-    if d.harmonize_csv:
-        parts.append(d.harmonize_csv.replace(",", " "))
-    # Review tokens for wine were computed at seed-time from harmonize/grapes/name,
-    # so they mostly overlap with the above. Including them is still cheap and
-    # gives a small TF boost to repeated tokens.
-    if d.review_tokens_csv:
-        parts.append(d.review_tokens_csv.replace(",", " "))
-    # Lowercase the whole thing so the vectorizer's token_pattern matches.
-    return " ".join(parts).lower()
-
-
-def load_wines() -> tuple[list[int], list[str], list[str]]:
-    """Load all wines from DB; return (ids, kinds, documents) with no empties.
-
-    `kinds` is a constant "wine" array, kept only so the serve-time CB loader's
-    artifact-existence gate (wine_cb_kinds.npy) stays satisfied.
-    """
-    print("Loading wines from DB ...")
-    db = SessionLocal()
-    ids:   list[int] = []
-    kinds: list[str] = []
-    docs:  list[str] = []
-    try:
-        for d in db.query(Wine).all():
-            doc = _wine_doc(d)
-            if not doc.strip():
-                continue
-            ids.append(d.id)
-            kinds.append("wine")
-            docs.append(doc)
-    finally:
-        db.close()
-
-    print(f"  Loaded {len(ids):,} wines.")
-    return ids, kinds, docs
+def _grapes(w: Wine) -> list[str]:
+    return [g.strip() for g in (w.grapes_csv or "").split(",") if g.strip()]
 
 
 def train() -> None:
     MODELS_DIR.mkdir(exist_ok=True)
-
-    ids, kinds, documents = load_wines()
-    if not ids:
-        print("No wines found. Run `python -m backend.db.wine.seed_wines` first.")
+    if not ROLLUP.exists():
+        print(f"Missing {ROLLUP}. Run: python -m backend.ml.wine.region_rollup")
         sys.exit(1)
+    rollup = json.loads(ROLLUP.read_text(encoding="utf-8"))
 
-    # Match recipe CB conventions for parity: same ngram range, same
-    # token_pattern, same sublinear_tf. Lower min_df because our wine
-    # corpus is much smaller than the recipe corpus.
-    min_df = 1 if len(documents) < 500 else 2
+    print("Loading wines from DB ...")
+    db = SessionLocal()
+    try:
+        wines = db.query(Wine).all()
+    finally:
+        db.close()
+    if not wines:
+        print("No wines. Run `python -m backend.db.wine.seed_wines` first.")
+        sys.exit(1)
+    print(f"  {len(wines):,} wines.")
 
-    print("Fitting TF-IDF vectorizer ...")
-    vectorizer = TfidfVectorizer(
-        ngram_range=(1, 2),
-        min_df=min_df,
-        max_features=20_000,
-        sublinear_tf=True,
-        analyzer="word",
-        token_pattern=r"[a-z]+",
-    )
-    tfidf_matrix = vectorizer.fit_transform(documents)
-    vocab_size = len(vectorizer.vocabulary_)
-    print(f"  Matrix shape: {tfidf_matrix.shape}  (wines x vocab)  |  vocab: {vocab_size:,}")
+    # ── build vocabularies ───────────────────────────────────────────────
+    grapes = sorted({g for w in wines for g in _grapes(w)})
+    regions = sorted({rollup.get(w.region, w.country or "?") for w in wines if w.region})
+    g_idx = {g: i for i, g in enumerate(grapes)}
+    r_idx = {r: i for i, r in enumerate(regions)}
+    n_g, n_r = len(grapes), len(regions)
+    # column layout: [grape block | region block | acidity | body | abv]
+    off_grape, off_region = 0, n_g
+    col_acid, col_body, col_abv = n_g + n_r, n_g + n_r + 1, n_g + n_r + 2
+    dim = n_g + n_r + 3
+    print(f"  vocab: {n_g} grapes, {n_r} parent-regions  ->  dim {dim}")
 
-    sp.save_npz(CB_MATRIX, tfidf_matrix)
-    np.save(CB_IDS,   np.array(ids,   dtype=np.int64))
-    np.save(CB_KINDS, np.array(kinds, dtype=object))
+    # ── build sparse matrix (COO) ────────────────────────────────────────
+    rows_i, cols_i, vals = [], [], []
+    ids = np.empty(len(wines), dtype=np.int64)
+    for row, w in enumerate(wines):
+        ids[row] = w.id
+        # grape multi-hot, block unit-normalized
+        gs = _grapes(w)
+        if gs:
+            v = 1.0 / np.sqrt(len(gs))   # unit norm of an all-ones multi-hot
+            for g in gs:
+                rows_i.append(row); cols_i.append(off_grape + g_idx[g]); vals.append(v)
+        # region one-hot (already unit length)
+        if w.region:
+            rows_i.append(row); cols_i.append(off_region + r_idx[rollup.get(w.region, w.country or "?")]); vals.append(1.0)
+        # ordinal/numeric scalars
+        rows_i.append(row); cols_i.append(col_acid); vals.append(ACIDITY.get(w.acidity, 0.5))
+        rows_i.append(row); cols_i.append(col_body); vals.append(BODY.get(w.body, 0.5))
+        abv = min(max(w.abv if w.abv is not None else 13.0, ABV_LO), ABV_HI)
+        rows_i.append(row); cols_i.append(col_abv); vals.append((abv - ABV_LO) / (ABV_HI - ABV_LO))
 
-    with open(CB_VECTORIZER, "wb") as f:
-        pickle.dump(vectorizer, f)
+    mat = sp.coo_matrix((vals, (rows_i, cols_i)), shape=(len(wines), dim)).tocsr()
 
-    meta = {
-        "trained_at":   datetime.now().isoformat(),
-        "n_wines":     len(ids),
-        "n_wines":      sum(1 for k in kinds if k == "wine"),
-        "vocab_size":   vocab_size,
-        "matrix_shape": list(tfidf_matrix.shape),
-        "ngram_range":  [1, 2],
-        "min_df":       min_df,
-        "max_features": 20_000,
+    # ── save ─────────────────────────────────────────────────────────────
+    sp.save_npz(CB_MATRIX, mat)
+    np.save(CB_IDS, ids)
+    blocks = {
+        "dim": dim,
+        "blocks": {
+            "grape":   {"start": off_grape,  "end": n_g,        "type": "multihot"},
+            "region":  {"start": off_region, "end": n_g + n_r,  "type": "onehot"},
+            "acidity": {"col": col_acid, "type": "scalar"},
+            "body":    {"col": col_body, "type": "scalar"},
+            "abv":     {"col": col_abv,  "type": "scalar"},
+        },
+        "grape_vocab":  g_idx,
+        "region_vocab": r_idx,
     }
-    with open(CB_META, "w") as f:
-        json.dump(meta, f, indent=2)
+    CB_BLOCKS.write_text(json.dumps(blocks, ensure_ascii=False), encoding="utf-8")
+    meta = {
+        "trained_at": datetime.now().isoformat(),
+        "approach": "structured weighted vector (unweighted at rest; weights applied at serve)",
+        "n_wines": len(wines), "dim": dim,
+        "n_grapes": n_g, "n_parent_regions": n_r,
+        "nnz": int(mat.nnz), "avg_nnz_per_wine": round(mat.nnz / len(wines), 2),
+    }
+    CB_META.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
-    print(f"  Saved -> {CB_MATRIX}")
+    print(f"  Saved -> {CB_MATRIX}  ({mat.shape[0]:,}x{mat.shape[1]}, nnz={mat.nnz:,})")
     print(f"  Saved -> {CB_IDS}")
-    print(f"  Saved -> {CB_KINDS}")
-    print(f"  Saved -> {CB_VECTORIZER}")
+    print(f"  Saved -> {CB_BLOCKS}")
     print(f"  Saved -> {CB_META}")
-    print(f"\nDone. {len(ids):,} wines embedded into {vocab_size:,}-dim TF-IDF space.")
+    print(f"\nDone. {len(wines):,} wines -> {dim}-dim structured vectors (unweighted).")
 
 
 if __name__ == "__main__":

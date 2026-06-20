@@ -70,14 +70,20 @@ def _to_out(w: Wine) -> WineOut:
 @router.get("/wine/ranked", response_model=list[WineOut])
 def get_ranked_wines(
     top_n: int = Query(10, ge=1, le=100),
+    user_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
 ):
     """
-    "Suggest me a wine" — top-N wines by Bayesian-smoothed popularity.
+    "Suggest me a wine".
 
-    bayesian = (n*avg + C*prior) / (n + C), with C=5, prior=3.5.
-    Not personalized yet (users are future work).
+    Without user_id: top-N wines by Bayesian-smoothed popularity (back-compat).
+    With user_id: personalized — style-filtered, blended CF+CB for warm users,
+    popularity cold start for new users (see services/wine/scoring.py).
     """
+    if user_id is not None:
+        from backend.services.wine.scoring import rank_wines
+        return [_to_out(w) for w in rank_wines(db, user_id, top_n)]
+
     bayesian = (
         (Wine.avg_rating * Wine.n_ratings + 3.5 * 5)
         / (Wine.n_ratings + 5)
