@@ -410,8 +410,8 @@ def log_event(payload: EventIn, db: Session = Depends(get_db)):
     db.add(event)
     db.commit()
 
-    # Drink-side side effect: if this is a high recipe rating, infer a few
-    # drink preferences for the Path-B "Drinks For You" flow. Fail-soft —
+    # Wine-side side effect: if this is a high recipe rating, infer a few
+    # wine preferences for the Path-B "Wine For You" flow. Fail-soft —
     # the synthesizer never raises and never affects the response below.
     if payload.event_type == "rate" and payload.rating is not None:
         maybe_synthesize_on_recipe_rating(

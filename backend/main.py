@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from backend.db.database import init_db
-from backend.routers import drinks, pantry, recipes, users, shopping
+from backend.routers import wine, pantry, recipes, users, shopping
 
 
 @asynccontextmanager
@@ -52,7 +52,7 @@ app.include_router(users.router)
 app.include_router(pantry.router)
 app.include_router(recipes.router)
 app.include_router(shopping.router)
-app.include_router(drinks.router)
+app.include_router(wine.router)
 
 
 @app.get("/health")

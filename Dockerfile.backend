@@ -10,8 +10,6 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY backend/ ./backend/
 COPY data/     ./data/
-COPY train_pipeline.sh .
-RUN chmod +x train_pipeline.sh
 
 # Create dirs that must exist at runtime
 RUN mkdir -p models

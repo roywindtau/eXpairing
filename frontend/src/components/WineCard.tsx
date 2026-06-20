@@ -1,15 +1,15 @@
-// DrinkCard.tsx
-// Compact card for a single drink in the "Drinks For You" feed.
+// WineCard.tsx
+// Compact card for a single wine in the "Wine For You" feed.
 // Two interactions:
-//   Rate     -> POST /drink-events with 1-5 stars (feeds drink CF / item-sim)
+//   Rate     -> POST /wine-events with 1-5 stars (feeds wine CF / item-sim)
 //   Dismiss  -> client-side only; removes the card from view (no event)
 
 import { useState } from 'react'
-import type { DrinkScoreOut } from '../api/drinks'
-import { rateDrink } from '../api/drinks'
+import type { WineScoreOut } from '../api/wine'
+import { rateWine } from '../api/wine'
 
 interface Props {
-  drink:      DrinkScoreOut
+  wine:       WineScoreOut
   userId:     number
   onRated?:   () => void
   onDismiss?: () => void
@@ -101,12 +101,12 @@ function StarRating({
   )
 }
 
-// ── "why this drink" reason (Path B) ─────────────────────────────────────
+// ── "why this wine" reason (Path B) ──────────────────────────────────────
 // Translates the dominant score component into a short human sentence so the
 // user understands the pick beyond just the algorithm name. No expert boost
 // here (Path B doesn't have a specific recipe to apply expert rules against).
-function whyForYou(drink: DrinkScoreOut): { text: string; icon: string } | null {
-  const { cb_score, cf_score, prior_score, cf_strategy } = drink
+function whyForYou(wine: WineScoreOut): { text: string; icon: string } | null {
+  const { cb_score, cf_score, prior_score, cf_strategy } = wine
 
   // Nothing won by a meaningful margin → no compelling story
   if (Math.max(cb_score, cf_score, prior_score) < 0.05) return null
@@ -128,12 +128,12 @@ function whyForYou(drink: DrinkScoreOut): { text: string; icon: string } | null 
     }
   }
 
-  // Popularity prior won → just a generally well-loved drink
+  // Popularity prior won → just a generally well-loved wine
   return { icon: '🔥', text: 'Highly rated overall' }
 }
 
 // ── main card ───────────────────────────────────────────────────────────
-export function DrinkCard({ drink, userId, onRated, onDismiss }: Props) {
+export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
   const [expanded,   setExpanded]   = useState(false)
   const [phase,      setPhase]      = useState<'idle' | 'rating' | 'rated'>('idle')
   const [submitting, setSubmitting] = useState(false)
@@ -141,7 +141,7 @@ export function DrinkCard({ drink, userId, onRated, onDismiss }: Props) {
   const handleRate = async (stars: number) => {
     setSubmitting(true)
     try {
-      await rateDrink(userId, drink.drink_id, stars)
+      await rateWine(userId, wine.wine_id, stars)
       setPhase('rated')
       setTimeout(() => onRated?.(), 800)
     } finally {
@@ -163,7 +163,7 @@ export function DrinkCard({ drink, userId, onRated, onDismiss }: Props) {
             Rated!
           </p>
           <p style={{ fontSize: 12, color: 'var(--green-600)', marginTop: 2 }}>
-            Your rating sharpens future drink picks.
+            Your rating sharpens future wine picks.
           </p>
         </div>
       </div>
@@ -173,47 +173,47 @@ export function DrinkCard({ drink, userId, onRated, onDismiss }: Props) {
   const icon = '🍷'
   const kindBadge = 'badge-green'
   // Most informative subtitle line: wine style + grape variety
-  const subtitle = [drink.style, drink.grapes_csv].filter(Boolean).join(' · ')
+  const subtitle = [wine.style, wine.variety].filter(Boolean).join(' · ')
 
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
-        <ScoreRing score={drink.final_score} />
+        <ScoreRing score={wine.final_score} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }}>
             <span style={{ marginRight: 6 }}>{icon}</span>
-            {drink.drink_name}
+            {wine.wine_name}
           </h3>
-          {drink.producer && (
+          {wine.producer && (
             <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 4 }}>
-              {drink.producer}
+              {wine.producer}
             </p>
           )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            <span className={`badge ${kindBadge}`}>{drink.kind}</span>
+            <span className={`badge ${kindBadge}`}>wine</span>
             {subtitle && <span className="badge badge-gray">{subtitle}</span>}
-            {drink.avg_rating != null && (
+            {wine.avg_rating != null && (
               <span className="badge badge-amber">
-                ★ {drink.avg_rating.toFixed(1)}
-                <span style={{ fontWeight: 400, opacity: .7 }}> ({drink.n_ratings})</span>
+                ★ {wine.avg_rating.toFixed(1)}
+                <span style={{ fontWeight: 400, opacity: .7 }}> ({wine.n_ratings})</span>
               </span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Pairing hint for wines */}
-      {drink.kind === 'wine' && drink.harmonize_csv && (
+      {/* Pairing hint */}
+      {wine.harmonize_csv && (
         <p style={{ fontSize: 11, color: 'var(--gray-500)', marginBottom: 6 }}>
-          Pairs with: {drink.harmonize_csv.replace(/,/g, ', ')}
+          Pairs with: {wine.harmonize_csv.replace(/,/g, ', ')}
         </p>
       )}
 
-      {/* "Why this drink" — human translation of the dominant signal */}
+      {/* "Why this wine" — human translation of the dominant signal */}
       {(() => {
-        const why = whyForYou(drink)
+        const why = whyForYou(wine)
         return why ? (
           <p style={{
             fontSize: 11, color: 'var(--green-700)', fontWeight: 500,
@@ -232,16 +232,16 @@ export function DrinkCard({ drink, userId, onRated, onDismiss }: Props) {
           textAlign: 'left', padding: 0, marginBottom: expanded ? 8 : 4,
         }}
       >
-        {expanded ? '▲ Hide breakdown' : '▼ Why this drink?'}
+        {expanded ? '▲ Hide breakdown' : '▼ Why this wine?'}
       </button>
       {expanded && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-          <ScoreBar label="Taste"  value={drink.cb_score}    color="var(--blue-500)"  />
-          <ScoreBar label="Crowd"  value={drink.cf_score}    color="var(--green-500)" />
-          {drink.expert_boost > 0 && (
-            <ScoreBar label="Pairing" value={drink.expert_boost} color="var(--amber-400)" />
+          <ScoreBar label="Taste"  value={wine.cb_score}    color="var(--blue-500)"  />
+          <ScoreBar label="Crowd"  value={wine.cf_score}    color="var(--green-500)" />
+          {wine.expert_boost > 0 && (
+            <ScoreBar label="Pairing" value={wine.expert_boost} color="var(--amber-400)" />
           )}
-          <ScoreBar label="Pop."   value={drink.prior_score} color="var(--gray-400)" />
+          <ScoreBar label="Pop."   value={wine.prior_score} color="var(--gray-400)" />
         </div>
       )}
 

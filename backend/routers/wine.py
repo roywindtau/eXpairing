@@ -1,10 +1,7 @@
 """
-drinks.py
----------
+wine.py
+-------
 HTTP API for wine recommendations + browsing + event logging.
-
-(The module keeps its `drinks` route prefix as a stable feature name, but the
-catalog is wine-only — there is no longer a `kind` discriminator.)
 
 Architecture
 ------------
@@ -20,11 +17,11 @@ Mirrors the two-stage pipeline used in routers/recipes.py:
 
 Routes
 ------
-    GET  /drinks/ranked               Path B  ("Drinks For You")
-    GET  /drinks/pairings/{recipe_id} Path A  (pair with a recipe)
-    GET  /drinks/search               browse/search
-    GET  /drinks/{drink_id}           detail
-    POST /drink-events                rate a wine
+    GET  /wine/ranked               Path B  ("Wine For You")
+    GET  /wine/pairings/{recipe_id} Path A  (pair with a recipe)
+    GET  /wine/search               browse/search
+    GET  /wine/{wine_id}            detail
+    POST /wine-events               rate a wine
 """
 
 from __future__ import annotations
@@ -46,17 +43,16 @@ from backend.services.wine.scoring import (
 )
 from backend.services.wine.expert_pairing import expert_boost_batch
 
-router = APIRouter(tags=["drinks"])
+router = APIRouter(tags=["wine"])
 
 CANDIDATE_POOL_SIZE = 2000   # Stage-1 cap, mirrors recipes router
 
 
 # ── pydantic schemas ────────────────────────────────────────────────────
 
-class DrinkScoreOut(BaseModel):
-    drink_id:     int
-    drink_name:   str
-    kind:         str = "wine"
+class WineScoreOut(BaseModel):
+    wine_id:      int
+    wine_name:    str
     final_score:  float
     cb_score:     float
     cf_score:     float
@@ -70,14 +66,13 @@ class DrinkScoreOut(BaseModel):
     producer:     Optional[str] = None
     # wine attributes
     style:         Optional[str] = None
-    wine_type:     Optional[str] = None
     variety:       Optional[str] = None
     harmonize_csv: Optional[str] = None
 
 
-class DrinkEventIn(BaseModel):
+class WineEventIn(BaseModel):
     user_id:    int
-    drink_id:   int
+    wine_id:    int
     event_type: str   # v1: "rate"
     rating:     Optional[float] = None
 
@@ -99,10 +94,10 @@ def _candidates(db: Session, limit: int) -> list[Wine]:
     )
 
 
-def _to_out(s: WineScore, wine: Wine) -> DrinkScoreOut:
-    return DrinkScoreOut(
-        drink_id=s.wine_id,
-        drink_name=s.wine_name,
+def _to_out(s: WineScore, wine: Wine) -> WineScoreOut:
+    return WineScoreOut(
+        wine_id=s.wine_id,
+        wine_name=s.wine_name,
         final_score=round(s.final_score, 4),
         cb_score=round(s.cb_score, 4),
         cf_score=round(s.cf_score, 4),
@@ -114,7 +109,6 @@ def _to_out(s: WineScore, wine: Wine) -> DrinkScoreOut:
         abv=wine.abv,
         producer=wine.producer,
         style=wine.style,
-        wine_type=wine.style,
         variety=wine.grapes_csv,
         harmonize_csv=wine.harmonize_csv,
     )
@@ -131,16 +125,16 @@ def _count_user_explicit_wine_ratings(db: Session, user_id: int) -> int:
     )
 
 
-# ── GET /drinks/ranked  (Path B) ────────────────────────────────────────
+# ── GET /wine/ranked  (Path B) ──────────────────────────────────────────
 
-@router.get("/drinks/ranked", response_model=list[DrinkScoreOut])
-def get_ranked_drinks(
+@router.get("/wine/ranked", response_model=list[WineScoreOut])
+def get_ranked_wines(
     user_id: int = Query(...),
     top_n:   int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
     """
-    Path B — "Drinks For You". Ranks wines by:
+    Path B — "Wine For You". Ranks wines by:
       - CB score from the user's RECIPE rating history (via flavor_bridge)
       - CF score routed by wine rating count (popularity / item-sim)
       - Popularity prior tiebreaker
@@ -177,10 +171,10 @@ def get_ranked_drinks(
     return [_to_out(s, wine_map[s.wine_id]) for s in ranked]
 
 
-# ── GET /drinks/pairings/{recipe_id}  (Path A) ──────────────────────────
+# ── GET /wine/pairings/{recipe_id}  (Path A) ────────────────────────────
 
-@router.get("/drinks/pairings/{recipe_id}", response_model=list[DrinkScoreOut])
-def get_drink_pairings(
+@router.get("/wine/pairings/{recipe_id}", response_model=list[WineScoreOut])
+def get_wine_pairings(
     recipe_id: int,
     user_id:   int = Query(...),
     top_n:     int = Query(10, ge=1, le=100),
@@ -226,10 +220,10 @@ def get_drink_pairings(
     return [_to_out(s, wine_map[s.wine_id]) for s in ranked]
 
 
-# ── GET /drinks/search ──────────────────────────────────────────────────
+# ── GET /wine/search ────────────────────────────────────────────────────
 
-@router.get("/drinks/search")
-def search_drinks(
+@router.get("/wine/search")
+def search_wines(
     q:     str = Query("", description="Search term (name or style/variety)"),
     limit: int = Query(40, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -252,7 +246,6 @@ def search_drinks(
         {
             "id":            w.id,
             "name":          w.name,
-            "kind":          "wine",
             "style":         w.style,
             "harmonize_csv": w.harmonize_csv,
             "producer":      w.producer,
@@ -264,17 +257,16 @@ def search_drinks(
     ]
 
 
-# ── GET /drinks/{drink_id} ──────────────────────────────────────────────
+# ── GET /wine/{wine_id} ─────────────────────────────────────────────────
 
-@router.get("/drinks/{drink_id}")
-def get_drink_detail(drink_id: int, db: Session = Depends(get_db)):
-    wine = db.get(Wine, drink_id)
+@router.get("/wine/{wine_id}")
+def get_wine_detail(wine_id: int, db: Session = Depends(get_db)):
+    wine = db.get(Wine, wine_id)
     if not wine:
         raise HTTPException(404, detail="Wine not found")
     return {
         "id":              wine.id,
         "name":            wine.name,
-        "kind":            "wine",
         "producer":        wine.producer,
         "country":         wine.country,
         "abv":             wine.abv,
@@ -290,10 +282,10 @@ def get_drink_detail(drink_id: int, db: Session = Depends(get_db)):
     }
 
 
-# ── POST /drink-events ──────────────────────────────────────────────────
+# ── POST /wine-events ───────────────────────────────────────────────────
 
-@router.post("/drink-events", status_code=201)
-def log_drink_event(payload: DrinkEventIn, db: Session = Depends(get_db)):
+@router.post("/wine-events", status_code=201)
+def log_wine_event(payload: WineEventIn, db: Session = Depends(get_db)):
     """
     Record a wine rating. v1 supports only event_type='rate' with a rating.
 
@@ -308,12 +300,12 @@ def log_drink_event(payload: DrinkEventIn, db: Session = Depends(get_db)):
     if not (0.0 <= payload.rating <= 5.0):
         raise HTTPException(422, detail="rating must be in [0, 5]")
 
-    if not db.get(Wine, payload.drink_id):
-        raise HTTPException(404, detail=f"Wine {payload.drink_id} not found")
+    if not db.get(Wine, payload.wine_id):
+        raise HTTPException(404, detail=f"Wine {payload.wine_id} not found")
 
     event = WineEvent(
         user_id=payload.user_id,
-        wine_id=payload.drink_id,
+        wine_id=payload.wine_id,
         event_type="rate",
         rating=payload.rating,
         synthetic=False,

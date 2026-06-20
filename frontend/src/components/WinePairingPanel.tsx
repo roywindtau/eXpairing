@@ -1,26 +1,21 @@
-// DrinkPairingPanel.tsx
-// Path A — pairing suggestions for a single recipe.
-// Mounted on RecipeDetailPage. Calls GET /drinks/pairings/{recipeId}.
+// WinePairingPanel.tsx
+// Path A — wine pairing suggestions for a single recipe.
+// Mounted on RecipeDetailPage. Calls GET /wine/pairings/{recipeId}.
 //
 // Visually denser than the Path-B feed so 4-6 picks fit on one screen.
-// The "why" line surfaces the expert boost reason (Harmonize match for
-// wines) when it's non-zero.
+// The "why" line surfaces the expert boost reason (Harmonize match) when
+// it's non-zero.
 
 import { useCallback, useEffect, useState } from 'react'
-import type { DrinkScoreOut, KindFilter } from '../api/drinks'
-import { getDrinkPairings, rateDrink } from '../api/drinks'
+import type { WineScoreOut } from '../api/wine'
+import { getWinePairings, rateWine } from '../api/wine'
 
 interface Props {
   recipeId:        number
   recipeName:      string
   recipeTags?:     string[]
   userId:          number
-  defaultKind?:    KindFilter
 }
-
-const KIND_OPTIONS: { key: KindFilter; label: string; icon: string }[] = [
-  { key: 'wine', label: 'Wine', icon: '🍷' },
-]
 
 // ── compact score ring (36px) ───────────────────────────────────────────
 function MiniRing({ score }: { score: number }) {
@@ -75,49 +70,43 @@ function MiniStars({ onRate, disabled }: { onRate: (n: number) => void; disabled
 // ── pairing reason text (the "why") ─────────────────────────────────────
 // Surfaces the expert boost source when it's non-zero. Falls back to
 // generic descriptors when CB/CF won without expert intervention.
-function pairingReason(d: DrinkScoreOut, recipeTags: string[]): string | null {
-  if (d.expert_boost > 0) {
-    if (d.kind === 'wine' && d.harmonize_csv) {
+function pairingReason(w: WineScoreOut): string | null {
+  if (w.expert_boost > 0) {
+    if (w.harmonize_csv) {
       // Find which harmonize tags overlap with the recipe context
-      const harmonize = d.harmonize_csv.split(',').map(s => s.trim()).filter(Boolean)
+      const harmonize = w.harmonize_csv.split(',').map(s => s.trim()).filter(Boolean)
       return `Harmonizes with ${harmonize.slice(0, 3).join(', ')}`
     }
     return 'Classic pairing'
   }
   // No expert hit — describe what won the slot
-  if (d.cb_score >= d.cf_score && d.cb_score >= d.prior_score) {
+  if (w.cb_score >= w.cf_score && w.cb_score >= w.prior_score) {
     return 'Flavor match'
   }
-  if (d.cf_score >= d.prior_score) {
+  if (w.cf_score >= w.prior_score) {
     return 'Loved by similar drinkers'
   }
   return null   // pure popularity — no compelling story, leave blank
 }
 
 // ── compact pairing card ────────────────────────────────────────────────
-function PairingCard({
-  drink, userId, recipeTags,
-}: {
-  drink:      DrinkScoreOut
-  userId:     number
-  recipeTags: string[]
-}) {
+function PairingCard({ wine, userId }: { wine: WineScoreOut; userId: number }) {
   const [phase,      setPhase]      = useState<'idle' | 'rated'>('idle')
   const [submitting, setSubmitting] = useState(false)
 
   const handleRate = async (stars: number) => {
     setSubmitting(true)
     try {
-      await rateDrink(userId, drink.drink_id, stars)
+      await rateWine(userId, wine.wine_id, stars)
       setPhase('rated')
     } finally {
       setSubmitting(false)
     }
   }
 
-  const reason = pairingReason(drink, recipeTags)
+  const reason = pairingReason(wine)
   const icon   = '🍷'
-  const sub    = [drink.style, drink.grapes_csv].filter(Boolean).join(' · ')
+  const sub    = [wine.style, wine.variety].filter(Boolean).join(' · ')
 
   return (
     <div className="card" style={{
@@ -129,7 +118,7 @@ function PairingCard({
     }}>
       {/* Header */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <MiniRing score={drink.final_score} />
+        <MiniRing score={wine.final_score} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
             fontSize: 13, fontWeight: 600, color: 'var(--gray-900)',
@@ -137,17 +126,17 @@ function PairingCard({
             overflow: 'hidden', display: '-webkit-box',
             WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
           }}>
-            <span style={{ marginRight: 4 }}>{icon}</span>{drink.drink_name}
+            <span style={{ marginRight: 4 }}>{icon}</span>{wine.wine_name}
           </p>
-          {drink.producer && (
+          {wine.producer && (
             <p style={{ fontSize: 11, color: 'var(--gray-500)', margin: '2px 0 0' }}>
-              {drink.producer}
+              {wine.producer}
             </p>
           )}
         </div>
       </div>
 
-      {/* Subtitle / kind info */}
+      {/* Subtitle info */}
       {sub && (
         <p style={{ fontSize: 11, color: 'var(--gray-600)', margin: 0 }}>{sub}</p>
       )}
@@ -155,11 +144,11 @@ function PairingCard({
       {/* The "why" line — only when there's a story to tell */}
       {reason && (
         <p style={{
-          fontSize: 11, color: drink.expert_boost > 0 ? 'var(--green-700)' : 'var(--gray-500)',
-          margin: 0, fontWeight: drink.expert_boost > 0 ? 500 : 400,
+          fontSize: 11, color: wine.expert_boost > 0 ? 'var(--green-700)' : 'var(--gray-500)',
+          margin: 0, fontWeight: wine.expert_boost > 0 ? 500 : 400,
           display: 'flex', alignItems: 'center', gap: 4,
         }}>
-          <span>{drink.expert_boost > 0 ? '🎯' : '✨'}</span>{reason}
+          <span>{wine.expert_boost > 0 ? '🎯' : '✨'}</span>{reason}
         </p>
       )}
 
@@ -176,9 +165,9 @@ function PairingCard({
         ) : (
           <>
             <MiniStars onRate={handleRate} disabled={submitting} />
-            {drink.avg_rating != null && (
+            {wine.avg_rating != null && (
               <span style={{ fontSize: 10, color: 'var(--gray-400)' }}>
-                avg ★ {drink.avg_rating.toFixed(1)}
+                avg ★ {wine.avg_rating.toFixed(1)}
               </span>
             )}
           </>
@@ -189,25 +178,22 @@ function PairingCard({
 }
 
 // ── main panel ──────────────────────────────────────────────────────────
-export function DrinkPairingPanel({
-  recipeId, recipeName, recipeTags = [], userId, defaultKind = 'wine',
-}: Props) {
-  const [pairings, setPairings] = useState<DrinkScoreOut[]>([])
+export function WinePairingPanel({ recipeId, recipeName, userId }: Props) {
+  const [pairings, setPairings] = useState<WineScoreOut[]>([])
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState<string | null>(null)
-  const [kind,     setKind]     = useState<KindFilter>(defaultKind)
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const data = await getDrinkPairings(recipeId, userId, kind, 6)
+      const data = await getWinePairings(recipeId, userId, 6)
       setPairings(data)
     } catch {
       setError('Could not load pairings.')
     } finally {
       setLoading(false)
     }
-  }, [recipeId, userId, kind])
+  }, [recipeId, userId])
 
   useEffect(() => { load() }, [load])
 
@@ -223,28 +209,11 @@ export function DrinkPairingPanel({
       }}>
         <div>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', margin: 0 }}>
-            Pair this with…
+            <span style={{ marginRight: 6 }}>🍷</span>Pair this with wine…
           </h2>
           <p style={{ fontSize: 12, color: 'var(--gray-500)', margin: '2px 0 0' }}>
             Suggestions for <em>{recipeName}</em>
           </p>
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {KIND_OPTIONS.map(o => (
-            <button
-              key={o.key}
-              onClick={() => setKind(o.key)}
-              className={`badge ${kind === o.key ? 'badge-green' : 'badge-gray'}`}
-              style={{
-                cursor: 'pointer',
-                padding: '4px 10px', fontSize: 12,
-                border: kind === o.key ? '1px solid var(--green-500)' : '1px solid var(--gray-200)',
-                transition: 'all .15s',
-              }}
-            >
-              <span style={{ marginRight: 4 }}>{o.icon}</span>{o.label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -267,7 +236,7 @@ export function DrinkPairingPanel({
       {!loading && !error && pairings.length === 0 && (
         <div className="empty" style={{ padding: '20px 16px' }}>
           <p style={{ fontSize: 13, color: 'var(--gray-500)' }}>
-            No pairings available — make sure the drink models are trained.
+            No pairings available — make sure the wine models are trained.
           </p>
         </div>
       )}
@@ -278,13 +247,8 @@ export function DrinkPairingPanel({
           gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
           gap: 12,
         }}>
-          {pairings.map(d => (
-            <PairingCard
-              key={d.drink_id}
-              drink={d}
-              userId={userId}
-              recipeTags={recipeTags}
-            />
+          {pairings.map(w => (
+            <PairingCard key={w.wine_id} wine={w} userId={userId} />
           ))}
         </div>
       )}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getRecipeDetail } from '../api/client'
 import type { RecipeDetail } from '../api/client'
-import { DrinkPairingPanel } from '../components/DrinkPairingPanel'
+import { WinePairingPanel } from '../components/WinePairingPanel'
 
 interface Props { userId: number }
 
@@ -135,8 +135,8 @@ export function RecipeDetailPage({ userId }: Props) {
         </div>
       )}
 
-      {/* Path A — drink pairings for this specific recipe */}
-      <DrinkPairingPanel
+      {/* Path A — wine pairings for this specific recipe */}
+      <WinePairingPanel
         recipeId={recipe.id}
         recipeName={recipe.name}
         recipeTags={recipe.tags}
