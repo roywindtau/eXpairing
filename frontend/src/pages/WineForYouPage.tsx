@@ -25,14 +25,14 @@ export function WineForYouPage({ userId }: Props) {
     setHasAsked(true)
     setDismissed(new Set())
     try {
-      const data = await getRankedWines(SUGGEST_COUNT)
+      const data = await getRankedWines(SUGGEST_COUNT, userId)
       setWines(data)
     } catch {
       setError('Could not get a suggestion. Make sure the backend is running.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [userId])
 
   const handleRated   = (id: number) =>
     setDismissed(prev => new Set([...prev, id]))

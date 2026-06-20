@@ -19,10 +19,14 @@ export interface WineOut {
 
 // ── API helpers ─────────────────────────────────────────────────────────────
 
-/** "Suggest me a wine" — top-N popular wines. Not personalized yet. */
-export const getRankedWines = (topN = 10) =>
+/**
+ * "Suggest me a wine" — top-N wines.
+ * With userId: personalized (style-filtered, CF+CB blend, popularity cold start).
+ * Without userId: top-N popular (back-compat).
+ */
+export const getRankedWines = (topN = 10, userId?: number) =>
   api.get<WineOut[]>('/wine/ranked', {
-    params: { top_n: topN },
+    params: { top_n: topN, ...(userId != null ? { user_id: userId } : {}) },
   }).then(r => r.data)
 
 export const rateWine = (userId: number, wineId: number, rating: number) =>
