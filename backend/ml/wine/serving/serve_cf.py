@@ -1,7 +1,7 @@
 """
 serve_cf.py
 -----------------
-CF serving layer for wine drinks.
+CF serving layer for wine wines.
 
 STRATEGY MATRIX
 ---------------
@@ -16,7 +16,7 @@ than a latent-factor model.
 
 The "user history" used to seed item-sim INCLUDES synthetic events
 (from synthesizer.py), so a user who has cooked lots of food but
-never rated a drink still gets item-sim-driven wine suggestions that
+never rated a wine still gets item-sim-driven wine suggestions that
 reflect their food preferences.
 
 PUBLIC API
@@ -36,8 +36,8 @@ import scipy.sparse as sp
 
 from backend.ml.wine.serving.cold_start import bayesian_popularity, item_sim_seed_scores
 
-SIM_WINE_PATH    = Path("models/drink_sim_wine.npz")
-SIM_WINE_IDS_PATH = Path("models/drink_sim_wine_ids.npy")
+SIM_WINE_PATH    = Path("models/wine_sim_wine.npz")
+SIM_WINE_IDS_PATH = Path("models/wine_sim_wine_ids.npy")
 
 MIN_RATINGS_FOR_CF = 5
 

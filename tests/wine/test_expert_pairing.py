@@ -29,7 +29,7 @@ def _recipe(ingredients_csv: str, tags_csv: str = "") -> SimpleNamespace:
     return SimpleNamespace(ingredients_csv=ingredients_csv, tags_csv=tags_csv)
 
 
-# ── drink fakes ──────────────────────────────────────────────────────────
+# ── wine fakes ──────────────────────────────────────────────────────────
 
 def _wine(harmonize: str, id_: int = 1) -> SimpleNamespace:
     return SimpleNamespace(
@@ -103,11 +103,11 @@ def test_wine_with_no_harmonize_returns_zero():
 
 def test_expert_boost_batch_returns_only_positive():
     recipe = _recipe("beef,steak,butter")
-    drinks = [
+    wines = [
         _wine("Beef,Lamb",          id_=1),
         _wine("Fish,Seafood",       id_=2),
     ]
-    out = expert_boost_batch(recipe, drinks)
+    out = expert_boost_batch(recipe, wines)
     assert set(out.keys()) == {1}
     assert out[1] > 0
     assert 2 not in out
@@ -118,7 +118,7 @@ def test_expert_boost_batch_empty_inputs():
     assert expert_boost_batch(_recipe("beef"), []) == {}
 
 
-def test_expert_boost_batch_skips_none_drinks():
+def test_expert_boost_batch_skips_none_wines():
     recipe = _recipe("beef")
     out = expert_boost_batch(recipe, [None, _wine("Beef", id_=7), None])
     assert 7 in out

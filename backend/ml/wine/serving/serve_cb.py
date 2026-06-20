@@ -1,26 +1,26 @@
 """
 serve_cb.py
 -----------------
-Content-based serving layer for drinks. Mirrors backend/ml/serve_cb.py.
+Content-based serving layer for wines. Mirrors backend/ml/serve_cb.py.
 
 ROLE IN THE SYSTEM
 ------------------
 Used in two flows:
 
-  Path A — Recipe pairing (in scoring.score_drinks_for_recipe):
-      cb_for_recipe(recipe) returns cosine(bridged_recipe_doc, every_drink)
+  Path A — Recipe pairing (in scoring.score_wines_for_recipe):
+      cb_for_recipe(recipe) returns cosine(bridged_recipe_doc, every_wine)
 
-  Path B — Standalone "Drinks For You" (in scoring.score_drinks_for_user):
+  Path B — Standalone "Wines For You" (in scoring.score_wines_for_user):
       cb_for_user(user_id, db) builds a weighted profile from the user's
       rated recipes (via flavor_bridge.bridge_recipe_doc) and cosines
-      against every drink. This is the no-CF flow: even users with zero
-      drink ratings can get personalized drink suggestions from their food
+      against every wine. This is the no-CF flow: even users with zero
+      wine ratings can get personalized wine suggestions from their food
       history alone.
 
 WHY BOTH WORK ON THE SAME MATRIX
 --------------------------------
 Both queries vectorize a "bridged recipe document" with the same
-TfidfVectorizer that was fit on drink docs. Tokens not in the drink
+TfidfVectorizer that was fit on wine docs. Tokens not in the wine
 vocab are silently dropped at transform-time (sklearn default). That
 means only flavor-bridge-injected tokens (e.g. "seafood", "red",
 "beef") actually contribute to the cosine — which is exactly what we
@@ -39,32 +39,32 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from backend.ml.wine.serving.flavor_bridge import bridge_recipe_doc
 
-CB_MATRIX_PATH     = Path("models/drink_cb_matrix.npz")
-CB_IDS_PATH        = Path("models/drink_cb_ids.npy")
-CB_KINDS_PATH      = Path("models/drink_cb_kinds.npy")
-CB_VECTORIZER_PATH = Path("models/drink_cb_vectorizer.pkl")
+CB_MATRIX_PATH     = Path("models/wine_cb_matrix.npz")
+CB_IDS_PATH        = Path("models/wine_cb_ids.npy")
+CB_KINDS_PATH      = Path("models/wine_cb_kinds.npy")
+CB_VECTORIZER_PATH = Path("models/wine_cb_vectorizer.pkl")
 
 _matrix     = None
-_drink_ids  = None
+_wine_ids  = None
 _kinds      = None
 _vectorizer = None
 _loaded     = False
 
 
 def _load():
-    global _matrix, _drink_ids, _kinds, _vectorizer, _loaded
+    global _matrix, _wine_ids, _kinds, _vectorizer, _loaded
     if _loaded:
         return
     if (CB_MATRIX_PATH.exists() and CB_IDS_PATH.exists() and
             CB_KINDS_PATH.exists() and CB_VECTORIZER_PATH.exists()):
         _matrix    = sp.load_npz(CB_MATRIX_PATH)
-        _drink_ids = np.load(CB_IDS_PATH)
+        _wine_ids = np.load(CB_IDS_PATH)
         _kinds     = np.load(CB_KINDS_PATH, allow_pickle=True)
         with open(CB_VECTORIZER_PATH, "rb") as f:
             _vectorizer = pickle.load(f)
-        print(f"[serve_cb] Loaded drink CB matrix {_matrix.shape}")
+        print(f"[serve_cb] Loaded wine CB matrix {_matrix.shape}")
     else:
-        print("[serve_cb] Drink CB artifacts not found — cb scores will be empty.")
+        print("[serve_cb] Wine CB artifacts not found — cb scores will be empty.")
     _loaded = True
 
 
@@ -75,8 +75,8 @@ def model_available() -> bool:
 
 def _reset_for_tests():
     """Hook used by tests to clear the module-level singleton."""
-    global _matrix, _drink_ids, _kinds, _vectorizer, _loaded
-    _matrix = _drink_ids = _kinds = _vectorizer = None
+    global _matrix, _wine_ids, _kinds, _vectorizer, _loaded
+    _matrix = _wine_ids = _kinds = _vectorizer = None
     _loaded = False
 
 
@@ -85,7 +85,7 @@ def _scores_from_vector(query_vec) -> dict[int, float]:
     sims = cosine_similarity(query_vec, _matrix)[0]
     return {
         int(did): round(float(max(0.0, sim)), 6)
-        for did, sim in zip(_drink_ids, sims)
+        for did, sim in zip(_wine_ids, sims)
     }
 
 
@@ -118,7 +118,7 @@ def cb_for_user(
 ) -> dict[int, float]:
     """
     Path B: build a weighted taste profile from the user's RECIPE rating history,
-    then cosine it against every drink.
+    then cosine it against every wine.
 
     Weighting scheme (matches serve_cb.cb_taste_profile_batch):
         weight = rating - 3.0   ∈ [-2, +2]

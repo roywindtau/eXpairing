@@ -6,18 +6,18 @@ into a single ranked list of WineScore objects.
 
 Mirrors backend/services/scoring.py (recipe ranker) but drops the recipe-
 specific machinery (pantry expiry, ingredient match ratio, MMR diversity)
-since none of them apply to a drink catalog.
+since none of them apply to a wine catalog.
 
 Two paths, two formulas
 -----------------------
-Path A — given a recipe, suggest drinks to pair with it:
+Path A — given a recipe, suggest wines to pair with it:
 
     final_A = 0.45·cb_score
             + 0.25·cf_score
             + 0.20·expert_boost
             + 0.10·popularity_prior
 
-Path B — "Drinks For You", driven by the user's recipe taste:
+Path B — "Wines For You", driven by the user's recipe taste:
 
     final_B = 0.55·cb_score
             + 0.30·cf_score
@@ -85,7 +85,7 @@ class WineScore:
 
 # ── helpers ─────────────────────────────────────────────────────────────
 
-def _popularity_prior(drink) -> float:
+def _popularity_prior(wine) -> float:
     """
     Bayesian-ish popularity prior, on a much wider scale than [0,1] —
     that's fine because we min-max calibrate before blending.
@@ -96,8 +96,8 @@ def _popularity_prior(drink) -> float:
     wine with 500 by 10×. After min-max calibration the prior contributes
     a small but stable tiebreaker among similarly-scored candidates.
     """
-    n   = float(getattr(drink, "n_ratings", None)  or 0)
-    avg = float(getattr(drink, "avg_rating", None) or 0.0)
+    n   = float(getattr(wine, "n_ratings", None)  or 0)
+    avg = float(getattr(wine, "avg_rating", None) or 0.0)
     if n <= 0 or avg <= 0:
         return 0.0
     return avg * math.log1p(n)
@@ -130,8 +130,8 @@ def rank_wines_for_recipe(
     top_n: int = 10,
 ) -> list[WineScore]:
     """
-    Path A — given one recipe + a candidate drink pool + all pre-computed
-    signal dicts, return the top-N drinks ranked by the Path-A formula.
+    Path A — given one recipe + a candidate wine pool + all pre-computed
+    signal dicts, return the top-N wines ranked by the Path-A formula.
 
     Args:
         recipe:        Recipe ORM row (used by callers for context; not directly
@@ -180,7 +180,7 @@ def rank_wines_for_recipe(
     return scores if top_n <= 0 else scores[:top_n]
 
 
-# ── Path B — "Drinks For You" ───────────────────────────────────────────
+# ── Path B — "Wines For You" ───────────────────────────────────────────
 
 def rank_wines_for_user(
     candidates: Iterable,

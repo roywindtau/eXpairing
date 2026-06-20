@@ -1,12 +1,12 @@
 """
-test_drink_cb.py
+test_wine_cb.py
 ----------------
 End-to-end tests for backend/ml/train_cb.py and serve_cb.py.
 
 Strategy:
   - Build an in-memory SQLite DB with a small but representative fixture
     (3 wines, 4 recipes, 4 user-rating events)
-  - Train the drink CB into a tmp `models/` dir (monkeypatched paths)
+  - Train the wine CB into a tmp `models/` dir (monkeypatched paths)
   - Verify artifacts exist, then exercise cb_for_recipe / cb_for_user
   - Validate semantics: a beef-heavy recipe must rank Red wine above White,
     a seafood-heavy recipe must rank White wine above Red.
@@ -80,16 +80,16 @@ def trained_cb(tmp_path, monkeypatch):
     models_dir = tmp_path / "models"
     models_dir.mkdir()
     monkeypatch.setattr(train_cb, "MODELS_DIR",    models_dir)
-    monkeypatch.setattr(train_cb, "CB_MATRIX",     models_dir / "drink_cb_matrix.npz")
-    monkeypatch.setattr(train_cb, "CB_IDS",        models_dir / "drink_cb_ids.npy")
-    monkeypatch.setattr(train_cb, "CB_KINDS",      models_dir / "drink_cb_kinds.npy")
-    monkeypatch.setattr(train_cb, "CB_VECTORIZER", models_dir / "drink_cb_vectorizer.pkl")
-    monkeypatch.setattr(train_cb, "CB_META",       models_dir / "drink_cb_meta.json")
+    monkeypatch.setattr(train_cb, "CB_MATRIX",     models_dir / "wine_cb_matrix.npz")
+    monkeypatch.setattr(train_cb, "CB_IDS",        models_dir / "wine_cb_ids.npy")
+    monkeypatch.setattr(train_cb, "CB_KINDS",      models_dir / "wine_cb_kinds.npy")
+    monkeypatch.setattr(train_cb, "CB_VECTORIZER", models_dir / "wine_cb_vectorizer.pkl")
+    monkeypatch.setattr(train_cb, "CB_META",       models_dir / "wine_cb_meta.json")
 
-    monkeypatch.setattr(serve_cb, "CB_MATRIX_PATH",     models_dir / "drink_cb_matrix.npz")
-    monkeypatch.setattr(serve_cb, "CB_IDS_PATH",        models_dir / "drink_cb_ids.npy")
-    monkeypatch.setattr(serve_cb, "CB_KINDS_PATH",      models_dir / "drink_cb_kinds.npy")
-    monkeypatch.setattr(serve_cb, "CB_VECTORIZER_PATH", models_dir / "drink_cb_vectorizer.pkl")
+    monkeypatch.setattr(serve_cb, "CB_MATRIX_PATH",     models_dir / "wine_cb_matrix.npz")
+    monkeypatch.setattr(serve_cb, "CB_IDS_PATH",        models_dir / "wine_cb_ids.npy")
+    monkeypatch.setattr(serve_cb, "CB_KINDS_PATH",      models_dir / "wine_cb_kinds.npy")
+    monkeypatch.setattr(serve_cb, "CB_VECTORIZER_PATH", models_dir / "wine_cb_vectorizer.pkl")
 
     train_cb.train()
     serve_cb._reset_for_tests()
@@ -104,11 +104,11 @@ def trained_cb(tmp_path, monkeypatch):
 def test_training_writes_all_artifacts(trained_cb):
     _, models_dir = trained_cb
     for name in (
-        "drink_cb_matrix.npz",
-        "drink_cb_ids.npy",
-        "drink_cb_kinds.npy",
-        "drink_cb_vectorizer.pkl",
-        "drink_cb_meta.json",
+        "wine_cb_matrix.npz",
+        "wine_cb_ids.npy",
+        "wine_cb_kinds.npy",
+        "wine_cb_vectorizer.pkl",
+        "wine_cb_meta.json",
     ):
         assert (models_dir / name).exists(), f"missing {name}"
 
@@ -116,7 +116,7 @@ def test_training_writes_all_artifacts(trained_cb):
 def test_artifact_shapes_match(trained_cb):
     serve_cb._load()
     assert serve_cb._matrix.shape[0] == 3   # 3 wines
-    assert len(serve_cb._drink_ids) == 3
+    assert len(serve_cb._wine_ids) == 3
     assert len(serve_cb._kinds) == 3
     assert set(serve_cb._kinds.tolist()) == {"wine"}
 
@@ -222,7 +222,7 @@ def test_cb_for_user_seafood_lover_ranks_white_above_red(trained_cb):
         f"Seafood lover: White {scores[2]} should beat Red {scores[1]}"
 
 
-def test_cb_for_user_negative_weight_pushes_drink_down(trained_cb):
+def test_cb_for_user_negative_weight_pushes_wine_down(trained_cb):
     """
     User loves steak (5) but hates shrimp (1). The Red wine should still win
     among wines because the steak signal dominates and shrimp's negative

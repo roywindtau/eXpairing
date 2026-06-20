@@ -34,83 +34,85 @@ Built for the Recommender Systems workshop at Tel Aviv University.
 frontend/          React + TypeScript (Vite)
 backend/
   main.py          FastAPI app
-  routers/         pantry, recipes, users, vision, shopping, drinks
+  routers/         pantry, recipes, users, vision, shopping, wine
   services/        scoring, expiry, ingredient_match, beta_updater, vision_agent,
                    wine:     scoring, synthesizer, expert_pairing
   ml/              recipes:  train_cf, train_cb, item_similarity, serve_cf, serve_cb, cold_start
                    wine:     train_cb, train_wine_als, item_similarity,
                              serve_cb, serve_cf, cold_start, flavor_bridge
   db/              SQLAlchemy models (User, Recipe, Wine, UserEvent, WineEvent, …) + seed scripts
+                   wine: seed_wines, reset_wines, compute_wine_stats
 data/              download scripts (Food.com + wine), EDA notebook
-train_pipeline.sh  one-shot training pipeline (recipes + drinks)
-tests/             530+ backend tests (unit + behavioral integration) + 63 E2E
+tests/             backend tests (unit + behavioral integration) + Playwright E2E
 ```
 
 ## Wine recommender
 
-A second recommender module pairs **wines** to the user, in two contexts:
+A second recommender module recommends **wines** to the user, in two contexts:
 
-- **Path A — Pair with a recipe.** On any recipe detail page, a "Pair this with…" panel shows 4–6 ranked wines for that specific dish. Surfaces an expert-rules boost (X-Wines Harmonize match).
-- **Path B — Drinks For You.** A standalone `/drinks` page ranks wines by the user's food + wine history. Uses the same CB/CF machinery as recipes, plus a flavor-bridge lexicon that maps recipe ingredients → wine-compatible flavor tokens.
+- **Path A — Pair with a recipe.** On any recipe detail page, a "Pair this with wine…" panel shows ranked wines for that specific dish. Surfaces an expert-rules boost (X-Wines Harmonize match).
+- **Path B — Suggest me a wine.** A standalone `/wine` page. The user clicks **"Suggest me a wine"** and gets the top 10 wines ranked for them — no auto-fetch, the click is the recommendation.
 
-Both paths share four signal sources blended via min-max calibrated weighted sum:
-- **CB** — TF-IDF over wine descriptors (style/variety/wine type/grapes/Harmonize) bridged from the recipe or user-history side
-- **CF** — Bayesian-smoothed popularity → item-item cosine (wine is too sparse to train matrix factorization)
-- **Expert rules** — Path A only; rule-based pairing knowledge
+The catalog is **wine-only** (the module keeps the stable `Wine`/`WineEvent` schema; there is no `kind` discriminator). Both paths share four signal sources blended via min-max calibrated weighted sum:
+
+- **CB** — TF-IDF over wine descriptors (style/variety/grapes/Harmonize) bridged from the recipe or user-history side
+- **CF** — Bayesian-smoothed popularity → item-item cosine (wine is too sparse for the per-user CF formula in the cold case)
+- **Expert rules** — Path A only; rule-based pairing knowledge (Harmonize match)
 - **Popularity prior** — `avg_rating · log1p(n_ratings)` tiebreaker
 
 Cold-start solution: when a user rates a recipe ≥ 4.0, the **wine synthesizer** infers compatible wines via CB+expert and inserts `WineEvent` rows with `synthetic=True, rating=4.0`. These seed the item-similarity path until the user accumulates real wine ratings.
 
 Both UI surfaces translate the dominant signal into a plain-English **"why this wine"** line (`🎯 Harmonizes with Beef, Lamb, Grilled` for expert hits, `🍽️ Matches your food taste` for CB-driven picks, etc.) — the raw algorithm name never leaks to the user.
 
-### Wine-recommender docs
-
-- [`docs/wine-recsys-design.md`](docs/wine-recsys-design.md) — architecture, scoring formulas, schema, design rationale, suggested reading order
-- [`docs/wine-recsys-steps.md`](docs/wine-recsys-steps.md) — chronological as-shipped record of the 11 build steps
-- [`docs/wine-recsys-future.md`](docs/wine-recsys-future.md) — deferred work, prioritized by impact-per-effort
+> **Current state (what actually runs):** only the **ALS model** (`models/wine_als_*`) and the frozen train/test **split** (`models/wine_split/`) are trained. The **CB** (`wine_cb_*`) and **item-sim** (`wine_sim_*`) artifacts are **not yet built**, so at request time CB scores are empty and CF falls back to **Bayesian popularity** for everyone. In practice the live "Suggest me a wine" ranking is popularity-driven over the seeded catalog — which is meaningful because `avg_rating`/`n_ratings` are populated from the full ratings file (see below). Training the CB + item-sim artifacts activates the remaining signals.
 
 ### Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET`  | `/drinks/ranked?user_id=&top_n=` | Path B "Drinks For You" |
-| `GET`  | `/drinks/pairings/{recipe_id}?user_id=&top_n=` | Path A pairing panel |
-| `GET`  | `/drinks/search?q=&limit=` | Browse / search |
-| `GET`  | `/drinks/{drink_id}` | Wine detail |
-| `POST` | `/drink-events` | Log a wine rating (1–5 stars) |
+| `GET`  | `/wine/ranked?user_id=&top_n=` | Path B "Suggest me a wine" |
+| `GET`  | `/wine/pairings/{recipe_id}?user_id=&top_n=` | Path A pairing panel |
+| `GET`  | `/wine/search?q=&limit=` | Browse / search |
+| `GET`  | `/wine/{wine_id}` | Wine detail |
+| `POST` | `/wine-events` | Log a wine rating (1–5 stars) |
 
-The catalog is wine-only. The synthesizer fires only on **recipe** rate events; wine rate events feed directly into item-sim.
+The synthesizer fires only on **recipe** rate events; wine rate events feed directly into item-sim.
 
-### Datasets
+### Dataset
 
-- **[X-Wines](https://github.com/rogerioxavier/X-Wines)** (Test slice from GitHub) — 100 wines, ~1k ratings
+- **[X-Wines](https://github.com/rogerioxavier/X-Wines)** (Full) — 100,646 wines, ~21M ratings. Raw CSVs live in `data/wine/` (git-ignored); `clean_wines.py` produces `clean_wines.csv` + `clean_ratings.csv`.
 
-### Train + try the demo
+### Seed + try the demo
+
+The wine catalog is seeded from the cleaned X-Wines CSV, then popularity stats are aggregated from the 21M ratings:
 
 ```bash
-# Build the wine models (~3 minutes on the Test slice)
-./train_pipeline.sh --drinks-only
+# One-shot: clean → reset wine tables → seed wines → compute avg_rating/n_ratings
+./data/wine/clean_and_seed.sh
 
-# Restart the backend so it picks up the new artifacts
-uvicorn backend.main:app --reload
-
-# In the frontend, click "Drinks" in the nav (Path B)
-# Or open any recipe → scroll to "Pair this with…" panel (Path A)
+# (or run the steps individually)
+python3 -m backend.db.reset_wines
+python3 -m backend.db.wine.seed_wines
+python3 -m backend.db.wine.compute_wine_stats   # populates the popularity prior
 ```
+
+`compute_wine_stats` is what makes cold-start ranking meaningful — without it every wine ties on a flat popularity score.
+
+Then, in the frontend, click **"Wine"** in the nav and hit **"Suggest me a wine"** (Path B), or open any recipe → scroll to the **"Pair this with wine…"** panel (Path A).
 
 You can also probe the API directly:
 
 ```bash
-# Path B — wine recommendations for user 1
-curl "http://localhost:8000/drinks/ranked?user_id=1&top_n=5" | jq
+# Path B — top 10 wine recommendations for user 1
+curl "http://localhost:8000/wine/ranked?user_id=1&top_n=10" | jq
 
 # Path A — wine pairings for recipe 42
-curl "http://localhost:8000/drinks/pairings/42?user_id=1&top_n=6" | jq
+curl "http://localhost:8000/wine/pairings/42?user_id=1&top_n=6" | jq
 
 # Rate a wine
-curl -X POST "http://localhost:8000/drink-events" \
+curl -X POST "http://localhost:8000/wine-events" \
      -H "Content-Type: application/json" \
-     -d '{"user_id":1,"drink_id":1,"event_type":"rate","rating":4.5}'
+     -d '{"user_id":1,"wine_id":100001,"event_type":"rate","rating":4.5}'
 ```
 
 ---
@@ -221,24 +223,24 @@ The quick start uses 20 hand-crafted dev recipes. For real CF and CB models trai
 python3 -m data.download_foodcom
 ```
 
-### Run the full pipeline
+### Run the recipe pipeline
 
-```bash
-chmod +x train_pipeline.sh
-./train_pipeline.sh                  # full pipeline: recipes + drinks (~20 min)
-./train_pipeline.sh --skip-drinks    # recipes only (original behavior, ~15 min)
-./train_pipeline.sh --drinks-only    # drinks only (~3 min on the X-Wines Test slice)
-./train_pipeline.sh 10000            # 10k recipes for quick dev (still does drinks)
-```
+Run the recipe training steps directly (there is no longer a combined
+`train_pipeline.sh` wrapper):
 
 | Step | Script | Output |
 |------|--------|--------|
-| 1 | `seed_recipes.py` | 231k recipes in DB |
-| 2 | `seed_ratings.py` | 1.1M ratings in DB |
-| 3 | `item_similarity.py` | `models/item_sim_matrix.npz` (sparse, top-50 per recipe) |
-| 4 | `train_cf.py` | `models/cf_model.pkl` (biased MF warm CF) |
-| 5 | `train_cb.py` | `models/cb_matrix.npz` (TF-IDF content-based) |
-| 6 | `evaluate.py` | `models/eval_results.json` (RMSE, Precision@K, NDCG@K) |
+| 1 | `python3 -m backend.db.seed_recipes` | 231k recipes in DB |
+| 2 | `python3 -m backend.db.seed_ratings` | 1.1M ratings in DB |
+| 3 | `python3 -m backend.ml.item_similarity` | `models/item_sim_matrix.npz` (sparse, top-50 per recipe) |
+| 4 | `python3 -m backend.ml.train_cf` | `models/cf_model.pkl` (biased MF warm CF) |
+| 5 | `python3 -m backend.ml.train_cb` | `models/cb_matrix.npz` (TF-IDF content-based) |
+| 6 | `python3 -m backend.ml.evaluate` | `models/eval_results.json` (RMSE, Precision@K, NDCG@K) |
+
+For wine, see **Wine recommender → Seed + try the demo** above for seeding,
+and the wine training scripts under `backend/ml/wine/training/`
+(`train_wine_als.py`, `train_cb.py`, `item_similarity.py`) to build the
+ALS / CB / item-sim artifacts.
 
 After training, restart the backend — it picks up model files automatically.
 
@@ -247,9 +249,17 @@ After training, restart the backend — it picks up model files automatically.
 ## Docker
 
 ```bash
-docker-compose up --build
+docker compose up --build
 # backend  → http://localhost:8000
 # frontend → http://localhost:5173
+```
+
+Or use the one-command helper (seeds the dev DB if needed, then brings the
+stack up):
+
+```bash
+./dev.sh                 # start
+./dev.sh --rebuild       # force image rebuild after dependency changes
 ```
 
 ---
@@ -368,8 +378,8 @@ backend/
     vision.py                GET /vision/mock, POST /vision/scan,
                                POST /vision/confirm/{user_id}
     shopping.py              GET/POST/PATCH/DELETE /shopping/{user_id}
-    drinks.py                GET /drinks/ranked, /drinks/pairings/{rid},
-                               /drinks/search, /drinks/{id}; POST /drink-events
+    wine.py                  GET /wine/ranked, /wine/pairings/{rid},
+                               /wine/search, /wine/{id}; POST /wine-events
   services/
     scoring.py               Core ranking formula (RecipeScore dataclass)
     expiry.py                Urgency score (exponential decay)
@@ -401,8 +411,10 @@ backend/
     seed_dev.py              Dev seed: 20 recipes with tags/steps + demo pantry
     seed_recipes.py          Load Food.com CSV → Recipe table
     seed_ratings.py          Load Food.com ratings → UserEvent table
-  drinks/
-    seed_wines.py            Load X-Wines → Wine table + WineEvent ratings
+    reset_wines.py           Drop + recreate only the wine tables
+    wine/
+      seed_wines.py          Load clean_wines.csv → Wine table
+      compute_wine_stats.py  Aggregate clean_ratings.csv → avg_rating/n_ratings
   canonicalizer/
     ingredient_map.py        Rule-based + fuzzy product name cleaner
     openfoodfacts.py         Barcode/name lookup via OFF API
@@ -412,22 +424,22 @@ frontend/src/
   api/client.ts              Axios client + all TypeScript types
   hooks/useUserId.ts         Persists user ID in localStorage
   index.css                  CSS custom properties + base styles
-  api/drinks.ts              Typed wrappers for the 5 wine endpoints
+  api/wine.ts                Typed wrappers for the 5 wine endpoints
   components/
     ExpiryBadge.tsx          Color-coded days-remaining badge + urgency bar
     IngredientAutocomplete.tsx  Debounced autocomplete input backed by /pantry/suggest
     RecipeCard.tsx           Score ring + match ring, explainer, Cook→Rate flow, Buy missing button
     ScoreExplainer.tsx       4-component score breakdown bars (unavailable = grayed)
     VisionScanner.tsx        Photo scan → confirm → add to pantry
-    DrinkCard.tsx            Path-B wine card with score breakdown, star rating
-    DrinkPairingPanel.tsx    Path-A pairing panel on RecipeDetailPage ("Pair this with…")
+    WineCard.tsx             Path-B wine card with score breakdown, star rating
+    WinePairingPanel.tsx     Path-A pairing panel on RecipeDetailPage ("Pair this with wine…")
   pages/
     OnboardingPage.tsx       First-run: name, beta slider, diet tags
     PantryPage.tsx           Pantry management with expiry rows + scan button
     RecipeFeedPage.tsx       Ranked recipe feed with CF strategy banner + sort-by dropdown
     RecipeDetailPage.tsx     Full recipe + wine pairing panel at bottom
     BrowsePage.tsx           Search/filter all recipes (clickable → detail)
-    DrinksForYouPage.tsx     Path-B wine feed (sort, CF banner)
+    WineForYouPage.tsx       Path-B "Suggest me a wine" feed (button → 10 picks, sort, CF banner)
     ProfilePage.tsx          Beta + diet tags + CF progress bar
     ShoppingListPage.tsx     Buy-list: check off items, clear purchased, source recipe attribution
 
@@ -450,15 +462,11 @@ frontend/e2e/
 
 data/
   download_foodcom.py        Kaggle download (Food.com)
-  wine/download_wines.py     GitHub raw (X-Wines Test)
   explore_foodcom.ipynb      EDA notebook
-
-train_pipeline.sh            One-shot training pipeline (recipes + drinks,
-                               supports --skip-drinks / --drinks-only)
-
-docs/
-  wine-recsys-design.md     Wine recommender architecture + rationale
-  wine-recsys-steps.md      11-step implementation plan with acceptance criteria
+  wine/
+    download_wines.py        X-Wines download
+    clean_wines.py           Raw X-Wines CSVs → clean_wines.csv + clean_ratings.csv
+    clean_and_seed.sh        Clean → reset → seed → compute stats (one shot)
 
 models/                      Trained artifacts (git-ignored)
   # recipes
@@ -468,15 +476,18 @@ models/                      Trained artifacts (git-ignored)
   cb_matrix.npz              TF-IDF recipe embeddings
   cb_vectorizer.pkl          Fitted TfidfVectorizer
   eval_results.json          Offline evaluation results
-  # wine
-  drink_cb_matrix.npz        TF-IDF wine embeddings
-  drink_cb_vectorizer.pkl    Fitted TfidfVectorizer for wine
-  drink_cb_ids.npy           Wine ID index (aligned with matrix rows)
-  drink_cb_kinds.npy         Per-row kind tag (legacy; all 'wine')
-  drink_cb_meta.json         Trained-on counts, hyperparams
-  drink_sim_wine.npz         Wine item-item cosine similarity (≥2 ratings)
-  drink_sim_wine_ids.npy     Wine ID index for the wine sim matrix
-  drink_sim_meta.json        Filter thresholds + wine counts
+  # wine — currently present
+  wine_als_model.npz         Confidence-weighted ALS factors + id maps
+  wine_als_meta.json         Ranking metrics + hyperparams + timestamp
+  wine_split/                Frozen leave-k-out train/test split
+  # wine — built by the wine training scripts (not present until trained)
+  wine_cb_matrix.npz         TF-IDF wine embeddings
+  wine_cb_vectorizer.pkl     Fitted TfidfVectorizer for wine
+  wine_cb_ids.npy            Wine ID index (aligned with matrix rows)
+  wine_cb_meta.json          Trained-on counts, hyperparams
+  wine_sim_wine.npz          Wine item-item cosine similarity
+  wine_sim_wine_ids.npy      Wine ID index for the wine sim matrix
+  wine_sim_meta.json         Filter thresholds + wine counts
 ```
 
 ---

@@ -5,7 +5,7 @@ Bootstraps a user's wine history from their RECIPE rating signal.
 
 Why this exists
 ---------------
-Without it, the Path-B "Drinks For You" flow has nothing to personalize on
+Without it, the Path-B "Wines For You" flow has nothing to personalize on
 until the user starts rating wines directly — which they may never do.
 By writing a small set of synthetic WineEvent rows every time a user rates
 a recipe ≥ 4.0, we get a sketch of their wine taste from day one.

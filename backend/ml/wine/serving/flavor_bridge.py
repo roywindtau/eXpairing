@@ -1,7 +1,7 @@
 """
 flavor_bridge.py
 ----------------
-Bridges recipe-side vocabulary (ingredients, tags) to drink-side vocabulary
+Bridges recipe-side vocabulary (ingredients, tags) to wine-side vocabulary
 so the TF-IDF cosine similarity in train_cb.py / serve_cb.py has
 real token overlap to work with.
 
@@ -9,7 +9,7 @@ Without this module, "shrimp scampi" and a wine harmonized with "Seafood"
 would have ~zero shared tokens and content-based pairing would collapse.
 
 Output vocabulary is intentionally chosen to overlap with what's already in
-the drink documents (Step 4 builds the docs from these sources):
+the wine documents (Step 4 builds the docs from these sources):
   - X-Wines Harmonize values: Beef, Lamb, Fish, Seafood, Poultry, Pasta,
     Cheese, Spicy, Vegetarian, Dessert, ...
   - Wine types:               red, white, rose, sparkling, dessert
@@ -25,7 +25,7 @@ import re
 from typing import Iterable
 
 # ── lexicon ──────────────────────────────────────────────────────────────
-# Map single-word ingredient tokens to lists of drink-side flavor tokens.
+# Map single-word ingredient tokens to lists of wine-side flavor tokens.
 # Bridge tokens are repeated as needed so that an ingredient triggering
 # both "seafood" and "white" doesn't lose either signal when TF-IDF later
 # weights them.
@@ -107,9 +107,9 @@ INGREDIENT_FLAVORS: dict[str, list[str]] = {
     "vinegar":  ["acidic"],
 }
 
-# ── tags that already match drink vocabulary (no bridge needed) ─────────
+# ── tags that already match wine vocabulary (no bridge needed) ─────────
 # Food.com tags like "italian", "mexican" already exist in (or near) the
-# drink vocabulary — we just pass them through.
+# wine vocabulary — we just pass them through.
 KNOWN_CUISINE_TAGS = frozenset({
     "italian", "french", "mexican", "spanish", "indian", "asian",
     "chinese", "japanese", "thai", "mediterranean", "american",
@@ -146,7 +146,7 @@ def bridge_ingredients(ingredients_csv: str) -> list[str]:
 
 
 def bridge_tags(tags_csv: str) -> list[str]:
-    """Pass through any tag that already overlaps the drink vocabulary."""
+    """Pass through any tag that already overlaps the wine vocabulary."""
     if not tags_csv:
         return []
     return [
@@ -159,7 +159,7 @@ def bridge_tags(tags_csv: str) -> list[str]:
 def bridge_recipe_doc(recipe) -> str:
     """
     Produce the lowercased, space-separated augmented document for a recipe,
-    ready to be fed to a TfidfVectorizer alongside drink documents.
+    ready to be fed to a TfidfVectorizer alongside wine documents.
 
     Composition:
         original ingredient words + relevant tag words + bridged flavor tokens

@@ -1,23 +1,23 @@
 """
-drink_cold_start.py
+wine_cold_start.py
 -------------------
-Cold-start helpers for the drink CF layer (used by serve_cf.py).
+Cold-start helpers for the wine CF layer (used by serve_cf.py).
 
 Two functions:
   1. bayesian_popularity()  — score = smoothed (avg_rating, n_ratings).
      Used when the user has no rating history or item-sim isn't available.
 
-  2. item_sim_seed_scores() — weighted-sum cosine to user's "seed" drinks.
+  2. item_sim_seed_scores() — weighted-sum cosine to user's "seed" wines.
      Used in the blended-warmth band (1-4 ratings) and as a way to score
-     drinks for users whose only signal is synthetic events from the
+     wines for users whose only signal is synthetic events from the
      recipe-side synthesizer (which still represent revealed preferences,
      just less reliable than explicit ratings).
 
 This module is intentionally simpler than backend/ml/cold_start.py:
-recipes have preference seeds (diet_tags + pantry); drinks don't, so
-the only available seed when the user has no drink history is "global
+recipes have preference seeds (diet_tags + pantry); wines don't, so
+the only available seed when the user has no wine history is "global
 popularity", and the only available seed when they DO have history is
-"the drinks they've rated".
+"the wines they've rated".
 """
 
 from __future__ import annotations
@@ -27,36 +27,36 @@ from typing import Iterable, Optional
 import numpy as np
 import scipy.sparse as sp
 
-GLOBAL_MEAN_RATING = 3.5   # neutral prior across drink datasets (rough midpoint of 1-5)
+GLOBAL_MEAN_RATING = 3.5   # neutral prior across wine datasets (rough midpoint of 1-5)
 SMOOTHING_C        = 10    # Bayesian smoothing constant (higher = trust prior more)
 
 
 def bayesian_popularity(
-    drink_ids: Iterable[int],
-    drinks_by_id: dict[int, dict],
+    wine_ids: Iterable[int],
+    wines_by_id: dict[int, dict],
     C: float = SMOOTHING_C,
     global_mean: float = GLOBAL_MEAN_RATING,
 ) -> dict[int, float]:
     """
-    Bayesian-smoothed popularity score for each candidate drink.
+    Bayesian-smoothed popularity score for each candidate wine.
 
         score(d) = (n_d * avg_d + C * global_mean) / (n_d + C)
 
-    Smoothed so a drink with 1 rating of 5.0 doesn't trivially beat a
-    drink with 500 ratings averaging 4.4. Final scores are linearly
+    Smoothed so a wine with 1 rating of 5.0 doesn't trivially beat a
+    wine with 500 ratings averaging 4.4. Final scores are linearly
     normalized to [0, 1] within the candidate pool so they slot into
     the same weight as any other CF score downstream.
 
     Args:
-        drink_ids:    candidate drink_ids to score
-        drinks_by_id: dict mapping drink_id -> {"avg_rating": float|None,
+        wine_ids:    candidate wine_ids to score
+        wines_by_id: dict mapping drink_id -> {"avg_rating": float|None,
                                                 "n_ratings": int}
         C:            smoothing strength (default 10)
         global_mean:  prior mean rating (default 3.5)
     """
     raw: dict[int, float] = {}
-    for did in drink_ids:
-        d = drinks_by_id.get(int(did))
+    for did in wine_ids:
+        d = wines_by_id.get(int(did))
         if d is None:
             raw[int(did)] = 0.0
             continue
@@ -74,15 +74,15 @@ def bayesian_popularity(
 
 
 def item_sim_seed_scores(
-    candidate_drink_ids: Iterable[int],
-    seed_drink_ids: list[int],
+    candidate_wine_ids: Iterable[int],
+    seed_wine_ids: list[int],
     seed_weights: list[float],
     sim_matrix: Optional[sp.csr_matrix],
     sim_ids: Optional[np.ndarray],
 ) -> dict[int, float]:
     """
     Weighted item-based CF score: how similar is each candidate to the
-    user's rated drinks, weighted by how much they liked each seed.
+    user's rated wines, weighted by how much they liked each seed.
 
         score(c) = sum_i w_i * sim(c, seed_i) / sum_i |w_i|
 
@@ -93,14 +93,14 @@ def item_sim_seed_scores(
     Output is clipped to [0,1] (cosine values are already in [-1,1] but
     after the +ve/-ve weighting we may go slightly negative; we floor at 0).
     """
-    if sim_matrix is None or sim_ids is None or len(seed_drink_ids) == 0:
+    if sim_matrix is None or sim_ids is None or len(seed_wine_ids) == 0:
         return {}
-    assert len(seed_drink_ids) == len(seed_weights), "seeds and weights must align"
+    assert len(seed_wine_ids) == len(seed_weights), "seeds and weights must align"
 
     id_to_row = {int(sid): i for i, sid in enumerate(sim_ids)}
     seed_rows: list[int] = []
     weights:   list[float] = []
-    for sid, w in zip(seed_drink_ids, seed_weights):
+    for sid, w in zip(seed_wine_ids, seed_weights):
         row = id_to_row.get(int(sid))
         if row is None or w == 0:
             continue
@@ -112,7 +112,7 @@ def item_sim_seed_scores(
         return {}
 
     out: dict[int, float] = {}
-    for did in candidate_drink_ids:
+    for did in candidate_wine_ids:
         row = id_to_row.get(int(did))
         if row is None:
             out[int(did)] = 0.0

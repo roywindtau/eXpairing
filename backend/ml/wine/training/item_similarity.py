@@ -2,7 +2,7 @@
 item_similarity.py
 ------------------------
 Builds an item-item cosine similarity matrix for wine from real
-(non-synthetic) DrinkEvent ratings. Mirrors backend/ml/item_similarity.py.
+(non-synthetic) WineEvent ratings. Mirrors backend/ml/item_similarity.py.
 
 Synthetic ratings are EXCLUDED
 ------------------------------
@@ -10,9 +10,9 @@ Real expressed preferences only.
 
 Saved artifacts
 ---------------
-    models/drink_sim_wine.npz       sparse top-K wine sim matrix
-    models/drink_sim_wine_ids.npy   wine drink_id per row/col
-    models/drink_sim_meta.json      counts + thresholds + timestamp
+    models/wine_sim_wine.npz       sparse top-K wine sim matrix
+    models/wine_sim_wine_ids.npy   wine drink_id per row/col
+    models/wine_sim_meta.json      counts + thresholds + timestamp
 
 Run:
     python -m backend.ml.wine.training.item_similarity
@@ -36,9 +36,9 @@ from backend.db.database import SessionLocal
 from backend.db.models import WineEvent
 
 MODELS_DIR = Path("models")
-SIM_WINE     = MODELS_DIR / "drink_sim_wine.npz"
-SIM_WINE_IDS = MODELS_DIR / "drink_sim_wine_ids.npy"
-SIM_META     = MODELS_DIR / "drink_sim_meta.json"
+SIM_WINE     = MODELS_DIR / "wine_sim_wine.npz"
+SIM_WINE_IDS = MODELS_DIR / "wine_sim_wine_ids.npy"
+SIM_META     = MODELS_DIR / "wine_sim_meta.json"
 
 TOP_K          = 50
 MIN_RATINGS_WINE = 2    # X-Wines Test is small — 5 would drop almost all wines
@@ -69,17 +69,17 @@ def _build_sim(df: pd.DataFrame, min_ratings: int) -> tuple[sp.csr_matrix, list[
     counts = df["drink_id"].value_counts()
     valid  = set(counts[counts >= min_ratings].index)
     df     = df[df["drink_id"].isin(valid)].copy()
-    print(f"  Kept {len(valid):,} drinks with >= {min_ratings} ratings  "
+    print(f"  Kept {len(valid):,} wines with >= {min_ratings} ratings  "
           f"({len(df):,} rating rows remaining)")
 
     if df.empty:
         return sp.csr_matrix((0, 0), dtype=np.float32), []
 
-    drink_ids = sorted(df["drink_id"].unique())
+    wine_ids = sorted(df["drink_id"].unique())
     user_ids  = sorted(df["user_id"].unique())
-    d_map = {d: i for i, d in enumerate(drink_ids)}
+    d_map = {d: i for i, d in enumerate(wine_ids)}
     u_map = {u: i for i, u in enumerate(user_ids)}
-    n_drinks = len(drink_ids)
+    n_wines = len(wine_ids)
     n_users  = len(user_ids)
 
     user_mean = df.groupby("user_id")["rating"].transform("mean")
@@ -89,15 +89,15 @@ def _build_sim(df: pd.DataFrame, min_ratings: int) -> tuple[sp.csr_matrix, list[
 
     R_T = sp.csr_matrix(
         (centered, (r_idx, u_idx)),
-        shape=(n_drinks, n_users),
+        shape=(n_wines, n_users),
         dtype=np.float32,
     )
-    print(f"  drink x user matrix: {R_T.shape}  ({R_T.nnz:,} non-zero)")
+    print(f"  wine x user matrix: {R_T.shape}  ({R_T.nnz:,} non-zero)")
 
     R_T_norm = normalize(R_T, norm="l2", axis=1)
     sim = _chunked_sparse_topk(R_T_norm, TOP_K, CHUNK_SIZE)
     print(f"  similarity matrix: {sim.shape}  ({sim.nnz:,} non-zero)")
-    return sim, drink_ids
+    return sim, wine_ids
 
 
 def _chunked_sparse_topk(

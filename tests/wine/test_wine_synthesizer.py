@@ -3,10 +3,10 @@ test_wine_synthesizer.py
 -------------------------
 Tests for backend/services/wine/synthesizer.py.
 
-Strategy: in-memory SQLite DB with a small set of drinks + a beef recipe.
+Strategy: in-memory SQLite DB with a small set of wines + a beef recipe.
 We monkey-patch serve_cb.cb_for_recipe to return canned scores so
 we don't need a trained CB model — that lets us assert exactly which
-drinks get synthesized for each fixture.
+wines get synthesized for each fixture.
 """
 
 from __future__ import annotations
@@ -244,7 +244,7 @@ def test_log_event_triggers_synthesizer(db_session):
     )
     result = log_event(payload, db_session)
     assert result["status"] == "ok"
-    # Synthesizer should have fired and written some drink events
+    # Synthesizer should have fired and written some wine events
     assert db_session.query(WineEvent).count() > 0
 
 
