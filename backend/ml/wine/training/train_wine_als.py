@@ -27,8 +27,8 @@ touch the serving layer (serve_cf.py still serves wine via item-sim).
 
 Saved artifacts
 ---------------
-    models/drink_wine_als_model.npz   user_factors + item_factors + id maps
-    models/drink_wine_als_meta.json   ranking metrics + hyperparams + timestamp
+    models/wine_als_model.npz   user_factors + item_factors + id maps
+    models/wine_als_meta.json   ranking metrics + hyperparams + timestamp
 
 Run:
     python -m backend.ml.wine.training.train_wine_als
@@ -58,8 +58,8 @@ from backend.ml.wine.training.eval_wine_model import evaluate, print_metrics
 def train(factors: int = 64, iterations: int = 20, regularization: float = 0.05,
           eval_k: int = 10) -> None:
     MODELS_DIR.mkdir(exist_ok=True)
-    model_path = MODELS_DIR / "drink_wine_als_model.npz"
-    meta_path  = MODELS_DIR / "drink_wine_als_meta.json"
+    model_path = MODELS_DIR / "wine_als_model.npz"
+    meta_path  = MODELS_DIR / "wine_als_meta.json"
 
     # Load the FROZEN leave-k-out split so every experiment is comparable.
     # The split already baked in confidence weighting + sparsity filtering,

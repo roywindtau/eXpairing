@@ -1,57 +1,18 @@
 // WineCard.tsx
-// Compact card for a single wine in the "Wine For You" feed.
+// Compact card for a single wine in the "Suggest me a wine" feed.
 // Two interactions:
-//   Rate     -> POST /wine-events with 1-5 stars (feeds wine CF / item-sim)
+//   Rate     -> POST /wine-events with 1-5 stars
 //   Dismiss  -> client-side only; removes the card from view (no event)
 
 import { useState } from 'react'
-import type { WineScoreOut } from '../api/wine'
+import type { WineOut } from '../api/wine'
 import { rateWine } from '../api/wine'
 
 interface Props {
-  wine:       WineScoreOut
+  wine:       WineOut
   userId:     number
   onRated?:   () => void
   onDismiss?: () => void
-}
-
-// ── score ring (mirrors RecipeCard's Ring) ──────────────────────────────
-function ScoreRing({ score }: { score: number }) {
-  const val   = Math.round(score * 100)
-  const color = val >= 60 ? 'var(--blue-500)' : val >= 35 ? 'var(--blue-500)' : 'var(--gray-300)'
-  const r     = 18
-  const circ  = 2 * Math.PI * r
-  const dash  = (val / 100) * circ
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      <svg width={44} height={44} viewBox="0 0 44 44">
-        <circle cx={22} cy={22} r={r} fill="none" stroke="var(--gray-100)" strokeWidth={4} />
-        <circle cx={22} cy={22} r={r} fill="none" stroke={color} strokeWidth={4}
-          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-          transform="rotate(-90 22 22)" style={{ transition: 'stroke-dasharray .4s' }} />
-        <text x={22} y={27} textAnchor="middle" fontSize={11} fontWeight={600} fill={color}>
-          {val}
-        </text>
-      </svg>
-      <span style={{ fontSize: 10, color: 'var(--gray-500)' }}>score</span>
-    </div>
-  )
-}
-
-// ── horizontal mini bar for one score component ─────────────────────────
-function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
-  const pct = Math.max(0, Math.min(100, Math.round(value * 100)))
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
-      <span style={{ width: 50, color: 'var(--gray-500)' }}>{label}</span>
-      <div style={{ flex: 1, height: 6, background: 'var(--gray-100)', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width .3s' }} />
-      </div>
-      <span style={{ width: 28, textAlign: 'right', color: 'var(--gray-600)', fontVariantNumeric: 'tabular-nums' }}>
-        {pct}
-      </span>
-    </div>
-  )
 }
 
 // ── inline star rating ──────────────────────────────────────────────────
@@ -101,40 +62,8 @@ function StarRating({
   )
 }
 
-// ── "why this wine" reason (Path B) ──────────────────────────────────────
-// Translates the dominant score component into a short human sentence so the
-// user understands the pick beyond just the algorithm name. No expert boost
-// here (Path B doesn't have a specific recipe to apply expert rules against).
-function whyForYou(wine: WineScoreOut): { text: string; icon: string } | null {
-  const { cb_score, cf_score, prior_score, cf_strategy } = wine
-
-  // Nothing won by a meaningful margin → no compelling story
-  if (Math.max(cb_score, cf_score, prior_score) < 0.05) return null
-
-  // CB dominates → flavor bridge picked it from the user's food history
-  if (cb_score >= cf_score && cb_score >= prior_score) {
-    return { icon: '🍽️', text: 'Matches your food taste' }
-  }
-
-  // CF dominates → describe HOW the CF score was computed
-  if (cf_score >= prior_score) {
-    switch (cf_strategy) {
-      case 'wine_item_sim':
-        return { icon: '🤝', text: 'Similar to wines you\'ve liked' }
-      case 'popularity_cold_start':
-        return { icon: '🔥', text: 'Loved by the community' }
-      default:
-        return { icon: '🤝', text: 'Picked from your history' }
-    }
-  }
-
-  // Popularity prior won → just a generally well-loved wine
-  return { icon: '🔥', text: 'Highly rated overall' }
-}
-
 // ── main card ───────────────────────────────────────────────────────────
 export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
-  const [expanded,   setExpanded]   = useState(false)
   const [phase,      setPhase]      = useState<'idle' | 'rating' | 'rated'>('idle')
   const [submitting, setSubmitting] = useState(false)
 
@@ -162,16 +91,11 @@ export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
           <p style={{ fontSize: 14, color: 'var(--green-700)', fontWeight: 500 }}>
             Rated!
           </p>
-          <p style={{ fontSize: 12, color: 'var(--green-600)', marginTop: 2 }}>
-            Your rating sharpens future wine picks.
-          </p>
         </div>
       </div>
     )
   }
 
-  const icon = '🍷'
-  const kindBadge = 'badge-green'
   // Most informative subtitle line: wine style + grape variety
   const subtitle = [wine.style, wine.variety].filter(Boolean).join(' · ')
 
@@ -179,28 +103,25 @@ export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
-        <ScoreRing score={wine.final_score} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }}>
-            <span style={{ marginRight: 6 }}>{icon}</span>
-            {wine.wine_name}
-          </h3>
-          {wine.producer && (
-            <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 4 }}>
-              {wine.producer}
-            </p>
+      <div style={{ marginBottom: 10 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }}>
+          <span style={{ marginRight: 6 }}>🍷</span>
+          {wine.wine_name}
+        </h3>
+        {wine.producer && (
+          <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 4 }}>
+            {wine.producer}
+          </p>
+        )}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          <span className="badge badge-green">wine</span>
+          {subtitle && <span className="badge badge-gray">{subtitle}</span>}
+          {wine.avg_rating != null && (
+            <span className="badge badge-amber">
+              ★ {wine.avg_rating.toFixed(1)}
+              <span style={{ fontWeight: 400, opacity: .7 }}> ({wine.n_ratings})</span>
+            </span>
           )}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            <span className={`badge ${kindBadge}`}>wine</span>
-            {subtitle && <span className="badge badge-gray">{subtitle}</span>}
-            {wine.avg_rating != null && (
-              <span className="badge badge-amber">
-                ★ {wine.avg_rating.toFixed(1)}
-                <span style={{ fontWeight: 400, opacity: .7 }}> ({wine.n_ratings})</span>
-              </span>
-            )}
-          </div>
         </div>
       </div>
 
@@ -209,40 +130,6 @@ export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
         <p style={{ fontSize: 11, color: 'var(--gray-500)', marginBottom: 6 }}>
           Pairs with: {wine.harmonize_csv.replace(/,/g, ', ')}
         </p>
-      )}
-
-      {/* "Why this wine" — human translation of the dominant signal */}
-      {(() => {
-        const why = whyForYou(wine)
-        return why ? (
-          <p style={{
-            fontSize: 11, color: 'var(--green-700)', fontWeight: 500,
-            margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 4,
-          }}>
-            <span>{why.icon}</span>{why.text}
-          </p>
-        ) : null
-      })()}
-
-      {/* Expandable score breakdown */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        style={{
-          fontSize: 12, color: 'var(--blue-600)', background: 'none', border: 'none',
-          textAlign: 'left', padding: 0, marginBottom: expanded ? 8 : 4,
-        }}
-      >
-        {expanded ? '▲ Hide breakdown' : '▼ Why this wine?'}
-      </button>
-      {expanded && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-          <ScoreBar label="Taste"  value={wine.cb_score}    color="var(--blue-500)"  />
-          <ScoreBar label="Crowd"  value={wine.cf_score}    color="var(--green-500)" />
-          {wine.expert_boost > 0 && (
-            <ScoreBar label="Pairing" value={wine.expert_boost} color="var(--amber-400)" />
-          )}
-          <ScoreBar label="Pop."   value={wine.prior_score} color="var(--gray-400)" />
-        </div>
       )}
 
       {/* Rating prompt (inline) */}

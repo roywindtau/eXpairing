@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getRecipeDetail } from '../api/client'
 import type { RecipeDetail } from '../api/client'
-import { WinePairingPanel } from '../components/WinePairingPanel'
 
+// userId is accepted (App passes it to every page route) but not used here
+// yet — recipe pairing was removed pending the wine-food CB model.
 interface Props { userId: number }
 
-export function RecipeDetailPage({ userId }: Props) {
+export function RecipeDetailPage(_: Props) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [recipe, setRecipe] = useState<RecipeDetail | null>(null)
@@ -134,14 +135,6 @@ export function RecipeDetailPage({ userId }: Props) {
           </p>
         </div>
       )}
-
-      {/* Path A — wine pairings for this specific recipe */}
-      <WinePairingPanel
-        recipeId={recipe.id}
-        recipeName={recipe.name}
-        recipeTags={recipe.tags}
-        userId={userId}
-      />
     </div>
   )
 }

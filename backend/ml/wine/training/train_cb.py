@@ -2,25 +2,25 @@
 train_cb.py
 -----------------
 TF-IDF content-based embeddings for every wine in the DB.
-Mirrors backend/ml/train_cb.py one-to-one but for the Drink table.
+Mirrors backend/ml/train_cb.py one-to-one but for the Wine table.
 
 The vocabulary (style words, harmonize categories, wine body terms) is what
 `flavor_bridge.py` is deliberately designed to inject into recipe docs at
 query time, so the cosine in serve_cb compares wines against any recipe
 in one shot.
 
-Per-drink documents
+Per-wine documents
 -------------------
 Wine: "wine {style} {grapes_csv} {harmonize_csv}"
                                                  e.g. "wine red malbec beef lamb grilled"
 
 Saved artifacts
 ---------------
-    models/drink_cb_matrix.npz       sparse TF-IDF matrix (n_drinks x vocab)
-    models/drink_cb_ids.npy          drink_id for each row in the matrix
-    models/drink_cb_kinds.npy        "wine" for each row (object array)
-    models/drink_cb_vectorizer.pkl   fitted TfidfVectorizer
-    models/drink_cb_meta.json        training stats
+    models/wine_cb_matrix.npz       sparse TF-IDF matrix (n_wines x vocab)
+    models/wine_cb_ids.npy          drink_id for each row in the matrix
+    models/wine_cb_kinds.npy        "wine" for each row (object array)
+    models/wine_cb_vectorizer.pkl   fitted TfidfVectorizer
+    models/wine_cb_meta.json        training stats
 
 Run:
     python -m backend.ml.wine.training.train_cb
@@ -44,11 +44,11 @@ from backend.db.database import SessionLocal
 from backend.db.models import Wine
 
 MODELS_DIR        = Path("models")
-CB_MATRIX         = MODELS_DIR / "drink_cb_matrix.npz"
-CB_IDS            = MODELS_DIR / "drink_cb_ids.npy"
-CB_KINDS          = MODELS_DIR / "drink_cb_kinds.npy"
-CB_VECTORIZER     = MODELS_DIR / "drink_cb_vectorizer.pkl"
-CB_META           = MODELS_DIR / "drink_cb_meta.json"
+CB_MATRIX         = MODELS_DIR / "wine_cb_matrix.npz"
+CB_IDS            = MODELS_DIR / "wine_cb_ids.npy"
+CB_KINDS          = MODELS_DIR / "wine_cb_kinds.npy"
+CB_VECTORIZER     = MODELS_DIR / "wine_cb_vectorizer.pkl"
+CB_META           = MODELS_DIR / "wine_cb_meta.json"
 
 
 def _wine_doc(d: Wine) -> str:
@@ -73,7 +73,7 @@ def load_wines() -> tuple[list[int], list[str], list[str]]:
     """Load all wines from DB; return (ids, kinds, documents) with no empties.
 
     `kinds` is a constant "wine" array, kept only so the serve-time CB loader's
-    artifact-existence gate (drink_cb_kinds.npy) stays satisfied.
+    artifact-existence gate (wine_cb_kinds.npy) stays satisfied.
     """
     print("Loading wines from DB ...")
     db = SessionLocal()
@@ -104,7 +104,7 @@ def train() -> None:
         sys.exit(1)
 
     # Match recipe CB conventions for parity: same ngram range, same
-    # token_pattern, same sublinear_tf. Lower min_df because our drink
+    # token_pattern, same sublinear_tf. Lower min_df because our wine
     # corpus is much smaller than the recipe corpus.
     min_df = 1 if len(documents) < 500 else 2
 
@@ -119,7 +119,7 @@ def train() -> None:
     )
     tfidf_matrix = vectorizer.fit_transform(documents)
     vocab_size = len(vectorizer.vocabulary_)
-    print(f"  Matrix shape: {tfidf_matrix.shape}  (drinks x vocab)  |  vocab: {vocab_size:,}")
+    print(f"  Matrix shape: {tfidf_matrix.shape}  (wines x vocab)  |  vocab: {vocab_size:,}")
 
     sp.save_npz(CB_MATRIX, tfidf_matrix)
     np.save(CB_IDS,   np.array(ids,   dtype=np.int64))
@@ -130,7 +130,7 @@ def train() -> None:
 
     meta = {
         "trained_at":   datetime.now().isoformat(),
-        "n_drinks":     len(ids),
+        "n_wines":     len(ids),
         "n_wines":      sum(1 for k in kinds if k == "wine"),
         "vocab_size":   vocab_size,
         "matrix_shape": list(tfidf_matrix.shape),
@@ -146,7 +146,7 @@ def train() -> None:
     print(f"  Saved -> {CB_KINDS}")
     print(f"  Saved -> {CB_VECTORIZER}")
     print(f"  Saved -> {CB_META}")
-    print(f"\nDone. {len(ids):,} drinks embedded into {vocab_size:,}-dim TF-IDF space.")
+    print(f"\nDone. {len(ids):,} wines embedded into {vocab_size:,}-dim TF-IDF space.")
 
 
 if __name__ == "__main__":
