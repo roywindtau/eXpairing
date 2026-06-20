@@ -16,8 +16,8 @@ Spec (see memory wine-cb-design):
             then × weight. style = HARD FILTER (neighbors share the seed's style).
 
 Run:
-    python -m backend.ml.wine.inspect_neighbors
-    python -m backend.ml.wine.inspect_neighbors --seeds 100200 100300
+    python -m data.wine.inspect_neighbors
+    python -m data.wine.inspect_neighbors --seeds 100200 100300
 """
 
 from __future__ import annotations

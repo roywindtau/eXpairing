@@ -22,8 +22,8 @@ This produces a static, committed artifact (region_rollup.json) consumed by the
 CB encoder. Pure lookup, no ML, no network.
 
 Run:
-    python -m backend.ml.wine.region_rollup          # writes region_rollup.json
-    python -m backend.ml.wine.region_rollup --stats  # + coverage report
+    python -m data.wine.region_rollup          # writes region_rollup.json
+    python -m data.wine.region_rollup --stats  # + coverage report
 """
 
 from __future__ import annotations

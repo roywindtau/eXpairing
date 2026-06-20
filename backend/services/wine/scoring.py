@@ -75,15 +75,20 @@ def _minmax(d: dict[int, float]) -> dict[int, float]:
 
 # ── main entry point ────────────────────────────────────────────────────
 
-def rank_wines(db: Session, user_id: int, top_n: int = 5) -> list[Wine]:
+def rank_wines(db: Session, user_id: int, top_n: int = 5,
+               styles: set[str] | None = None) -> list[Wine]:
+    """
+    styles: if given, the user's explicit style choice — overrides the
+    auto-derived "styles you drink". Empty/None falls back to auto.
+    """
     liked = _liked(db, user_id)
 
-    # 1. COLD START — no ratings → popularity, unchanged behavior
+    # 1. COLD START — no ratings → popularity (honoring an explicit style pick)
     if not liked:
-        return popularity_top_n(db, top_n)
+        return popularity_top_n(db, top_n, styles=styles or None)
 
-    # 2. STYLE FILTER — only styles the user drinks
-    styles = _user_styles(db, [w for w, _ in liked])
+    # 2. STYLE FILTER — explicit choice wins; else the styles the user drinks
+    styles = styles or _user_styles(db, [w for w, _ in liked])
     pool = popularity_top_n(db, CANDIDATE_POOL, styles=styles or None)
     liked_ids = {w for w, _ in liked}
     candidates = [w for w in pool if w.id not in liked_ids]   # don't re-recommend rated

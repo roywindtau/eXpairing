@@ -40,6 +40,10 @@ class WineOut(BaseModel):
     style:         Optional[str] = None
     variety:       Optional[str] = None
     harmonize_csv: Optional[str] = None
+    # structural attributes the CB ranking matches on ("why this wine")
+    acidity:       Optional[str] = None
+    body:          Optional[str] = None
+    region:        Optional[str] = None
 
 
 class WineEventIn(BaseModel):
@@ -62,6 +66,9 @@ def _to_out(w: Wine) -> WineOut:
         style=w.style,
         variety=w.grapes_csv,
         harmonize_csv=w.harmonize_csv,
+        acidity=w.acidity,
+        body=w.body,
+        region=w.region,
     )
 
 
@@ -71,6 +78,7 @@ def _to_out(w: Wine) -> WineOut:
 def get_ranked_wines(
     top_n: int = Query(10, ge=1, le=100),
     user_id: Optional[int] = Query(None),
+    styles: Optional[list[str]] = Query(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -79,15 +87,23 @@ def get_ranked_wines(
     Without user_id: top-N wines by Bayesian-smoothed popularity (back-compat).
     With user_id: personalized — style-filtered, blended CF+CB for warm users,
     popularity cold start for new users (see services/wine/scoring.py).
+    styles: optional explicit style filter (e.g. Red, White) — overrides the
+    auto-derived "styles you drink".
     """
+    style_set = {s for s in styles if s} if styles else None
     if user_id is not None:
         from backend.services.wine.scoring import rank_wines
-        return [_to_out(w) for w in rank_wines(db, user_id, top_n)]
+        return [_to_out(w) for w in rank_wines(db, user_id, top_n, styles=style_set)]
 
     bayesian = (
         (Wine.avg_rating * Wine.n_ratings + 3.5 * 5)
         / (Wine.n_ratings + 5)
     )
+    if style_set:
+        # honor an explicit style filter even on the non-personalized path
+        return [_to_out(w) for w in
+                db.query(Wine).filter(Wine.style.in_(style_set))
+                  .order_by(bayesian.desc().nullslast()).limit(top_n).all()]
     rows = (
         db.query(Wine)
           .order_by(bayesian.desc().nullslast())

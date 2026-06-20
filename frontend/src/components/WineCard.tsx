@@ -62,6 +62,27 @@ function StarRating({
   )
 }
 
+// Per-style accent colors — single source of truth for both the card tint and
+// the style picker chips. `bg` is a soft wash; `accent` the saturated border.
+export const STYLE_COLORS: Record<string, { bg: string; accent: string }> = {
+  // Pulled apart by HUE (not just shade) so adjacent styles are distinct:
+  Red:            { bg: '#fbeef0', accent: '#9b1b30' },  // cool deep crimson
+  White:          { bg: '#f4faf0', accent: '#9bbf4a' },  // straw / green-gold
+  Rosé:           { bg: '#fdf2f4', accent: '#e8819f' },  // clear pink
+  Sparkling:      { bg: '#fffce8', accent: '#f2c200' },  // bright champagne yellow
+  Dessert:        { bg: '#f6ece0', accent: '#c8771a' },  // warm tawny orange-brown
+  'Dessert/Port': { bg: '#f6ece0', accent: '#c8771a' },
+}
+
+// Subtle per-style tint for a card: soft background wash + matching accent
+// border so a card visually reads as its style. Kept light for legibility.
+export function styleTint(style: string | null): { background: string; borderLeft: string } {
+  const c = style ? STYLE_COLORS[style] : undefined
+  return c
+    ? { background: c.bg, borderLeft: `4px solid ${c.accent}` }
+    : { background: 'var(--surface, #fff)', borderLeft: '4px solid var(--gray-200)' }
+}
+
 // ── main card ───────────────────────────────────────────────────────────
 export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
   const [phase,      setPhase]      = useState<'idle' | 'rating' | 'rated'>('idle')
@@ -99,13 +120,16 @@ export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
   // Most informative subtitle line: wine style + grape variety
   const subtitle = [wine.style, wine.variety].filter(Boolean).join(' · ')
 
+
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+    <div className="card" style={{
+      display: 'flex', flexDirection: 'column', gap: 0, height: '100%',
+      ...styleTint(wine.style),
+    }}>
 
       {/* Header row */}
       <div style={{ marginBottom: 10 }}>
         <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }}>
-          <span style={{ marginRight: 6 }}>🍷</span>
           {wine.wine_name}
         </h3>
         {wine.producer && (
@@ -114,23 +138,15 @@ export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
           </p>
         )}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          <span className="badge badge-green">wine</span>
           {subtitle && <span className="badge badge-gray">{subtitle}</span>}
-          {wine.avg_rating != null && (
+          {Number.isFinite(wine.avg_rating) && (
             <span className="badge badge-amber">
-              ★ {wine.avg_rating.toFixed(1)}
+              ★ {Number(wine.avg_rating).toFixed(1)}
               <span style={{ fontWeight: 400, opacity: .7 }}> ({wine.n_ratings})</span>
             </span>
           )}
         </div>
       </div>
-
-      {/* Pairing hint */}
-      {wine.harmonize_csv && (
-        <p style={{ fontSize: 11, color: 'var(--gray-500)', marginBottom: 6 }}>
-          Pairs with: {wine.harmonize_csv.replace(/,/g, ', ')}
-        </p>
-      )}
 
       {/* Rating prompt (inline) */}
       {phase === 'rating' && (
@@ -146,7 +162,7 @@ export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
       {/* Action buttons */}
       {phase === 'idle' && (
         <div style={{
-          display: 'flex', gap: 8, marginTop: 10, paddingTop: 10,
+          display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 10,
           borderTop: '1px solid var(--gray-100)',
         }}>
           <button

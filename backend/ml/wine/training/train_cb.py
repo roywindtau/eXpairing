@@ -63,7 +63,7 @@ def _grapes(w: Wine) -> list[str]:
 def train() -> None:
     MODELS_DIR.mkdir(exist_ok=True)
     if not ROLLUP.exists():
-        print(f"Missing {ROLLUP}. Run: python -m backend.ml.wine.region_rollup")
+        print(f"Missing {ROLLUP}. Run: python -m data.wine.region_rollup")
         sys.exit(1)
     rollup = json.loads(ROLLUP.read_text(encoding="utf-8"))
 
