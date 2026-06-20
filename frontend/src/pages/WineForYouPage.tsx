@@ -1,16 +1,18 @@
 // WineForYouPage.tsx
 // "Suggest me a wine" feed.
-// User clicks the button → GET /wine/ranked returns the top 10 popular wines.
-// No auto-fetch, no personalization yet — the click IS the recommendation.
+// User clicks the button → GET /wine/ranked?user_id= returns a personalized
+// ranking (style-filtered, CF+CB blend for warm users; popularity cold start).
+// No auto-fetch — the click IS the recommendation.
 
 import { useCallback, useState } from 'react'
 import { getRankedWines } from '../api/wine'
 import type { WineOut } from '../api/wine'
-import { WineCard } from '../components/WineCard'
+import { WineCard, STYLE_COLORS } from '../components/WineCard'
 
 interface Props { userId: number }
 
 const SUGGEST_COUNT = 10
+const STYLE_OPTIONS = ['Red', 'White', 'Rosé', 'Sparkling', 'Dessert'] as const
 
 export function WineForYouPage({ userId }: Props) {
   const [wines,     setWines]     = useState<WineOut[]>([])
@@ -18,6 +20,14 @@ export function WineForYouPage({ userId }: Props) {
   const [error,     setError]     = useState<string | null>(null)
   const [hasAsked,  setHasAsked]  = useState(false)
   const [dismissed, setDismissed] = useState<Set<number>>(new Set())
+  const [styles,    setStyles]    = useState<Set<string>>(new Set())
+
+  const toggleStyle = (s: string) =>
+    setStyles(prev => {
+      const next = new Set(prev)
+      next.has(s) ? next.delete(s) : next.add(s)
+      return next
+    })
 
   const suggest = useCallback(async () => {
     setLoading(true)
@@ -25,14 +35,14 @@ export function WineForYouPage({ userId }: Props) {
     setHasAsked(true)
     setDismissed(new Set())
     try {
-      const data = await getRankedWines(SUGGEST_COUNT)
+      const data = await getRankedWines(SUGGEST_COUNT, userId, [...styles])
       setWines(data)
     } catch {
       setError('Could not get a suggestion. Make sure the backend is running.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [userId, styles])
 
   const handleRated   = (id: number) =>
     setDismissed(prev => new Set([...prev, id]))
@@ -40,6 +50,42 @@ export function WineForYouPage({ userId }: Props) {
     setDismissed(prev => new Set([...prev, id]))
 
   const visible = wines.filter(w => !dismissed.has(w.wine_id))
+
+  // Group the feed into one section per style, preserving rank order within
+  // each style and ordering styles by their best-ranked wine.
+  const groupedByStyle: [string, WineOut[]][] = (() => {
+    const groups = new Map<string, WineOut[]>()
+    for (const w of visible) {
+      const key = w.style ?? 'Other'
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(w)
+    }
+    return [...groups.entries()]   // insertion order = first appearance = best rank
+  })()
+
+  // Within a style row, sub-group wines by their PRIMARY pairing — the pairing
+  // (from harmonize_csv) that is most common across that row, so cards cluster
+  // into meaningful pairing groups instead of singletons.
+  const groupByPairing = (row: WineOut[]): [string, WineOut[]][] => {
+    const foods = (w: WineOut) =>
+      (w.harmonize_csv ?? '').split(',').map(s => s.trim()).filter(Boolean)
+    // global frequency of each food across the row
+    const freq = new Map<string, number>()
+    row.forEach(w => foods(w).forEach(f => freq.set(f, (freq.get(f) ?? 0) + 1)))
+    const primary = (w: WineOut): string => {
+      const fs = foods(w)
+      if (!fs.length) return 'Other'
+      return fs.reduce((a, b) => (freq.get(b)! > freq.get(a)! ? b : a))
+    }
+    const groups = new Map<string, WineOut[]>()
+    for (const w of row) {
+      const key = primary(w)
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(w)
+    }
+    // order pairing groups by size (biggest cluster first)
+    return [...groups.entries()].sort((a, b) => b[1].length - a[1].length)
+  }
 
   const SuggestButton = ({ label }: { label: string }) => (
     <button
@@ -52,6 +98,39 @@ export function WineForYouPage({ userId }: Props) {
     </button>
   )
 
+  // Style chips — toggle which styles to generate. Empty = "styles you drink".
+  const StylePicker = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 18 }}>
+      <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>
+        Styles {styles.size === 0 && '(all you drink)'}
+      </span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+        {STYLE_OPTIONS.map(s => {
+          const on = styles.has(s)
+          const c = STYLE_COLORS[s]
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => toggleStyle(s)}
+              className="badge"
+              style={{
+                cursor: 'pointer', fontSize: 12, padding: '4px 10px',
+                // selected: filled with the style's accent; idle: soft wash
+                background: on ? c.accent : c.bg,
+                color: on ? '#fff' : 'var(--gray-700)',
+                border: `1px solid ${c.accent}`,
+                fontWeight: on ? 600 : 400,
+              }}
+            >
+              {on ? '✓ ' : ''}{s}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+
   return (
     <div className="page">
       {/* Header */}
@@ -59,7 +138,6 @@ export function WineForYouPage({ userId }: Props) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 16, gap: 12, flexWrap: 'wrap',
       }}>
-        <h1 className="page-title" style={{ margin: 0 }}>🍷 Wine for you</h1>
         {hasAsked && !loading && visible.length > 0 && (
           <button className="btn btn-ghost" onClick={suggest} style={{ fontSize: 13 }}>
             ↻ Suggest again
@@ -73,15 +151,22 @@ export function WineForYouPage({ userId }: Props) {
           <div className="empty-icon">🥂</div>
           <h3>Not sure what to drink?</h3>
           <p style={{ marginBottom: 20 }}>
-            Get {SUGGEST_COUNT} popular wine picks to get you started.
+            Get {SUGGEST_COUNT} wine picks tailored to what you've rated.
           </p>
+          <StylePicker />
           <SuggestButton label="Suggest me a wine" />
         </div>
       )}
 
       {/* Loading */}
       {loading && (
-        <div className="spinner-wrap"><div className="spinner" /></div>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          gap: 12, paddingTop: 64,
+        }}>
+          <span className="wine-spinner" role="img" aria-label="pouring wine">🍷</span>
+          <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>Finding wines…</span>
+        </div>
       )}
 
       {/* Error */}
@@ -108,20 +193,41 @@ export function WineForYouPage({ userId }: Props) {
           </div>
         ) : (
           <>
-            <p style={{ fontSize: 13, color: 'var(--gray-400)', marginBottom: 14 }}>
-              {visible.length} popular picks
-            </p>
-            <div className="recipe-grid">
-              {visible.map(w => (
-                <WineCard
-                  key={w.wine_id}
-                  wine={w}
-                  userId={userId}
-                  onRated={()   => handleRated(w.wine_id)}
-                  onDismiss={() => handleDismiss(w.wine_id)}
-                />
-              ))}
-            </div>
+            <StylePicker />
+            {groupedByStyle.map(([style, group]) => (
+              <section key={style} style={{ marginBottom: 24 }}>
+                <h2 style={{
+                  fontSize: 14, fontWeight: 600, color: 'var(--gray-600)',
+                  margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  {style}
+                  <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--gray-400)' }}>
+                    {group.length}
+                  </span>
+                </h2>
+                {groupByPairing(group).map(([pairing, wines]) => (
+                  <div key={pairing} style={{ marginBottom: 14 }}>
+                    <p style={{
+                      fontSize: 12, color: 'var(--gray-400)', margin: '0 0 6px',
+                      fontWeight: 500,
+                    }}>
+                      Pairs with {pairing}
+                    </p>
+                    <div className="wine-grid">
+                      {wines.map(w => (
+                        <WineCard
+                          key={w.wine_id}
+                          wine={w}
+                          userId={userId}
+                          onRated={()   => handleRated(w.wine_id)}
+                          onDismiss={() => handleDismiss(w.wine_id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </section>
+            ))}
           </>
         )
       )}

@@ -1,0 +1,125 @@
+"""
+serve_cb.py
+-----------
+Content-based wine scoring at request time.
+
+Loads the precomputed structured wine matrix (wine_cb_matrix.npz, UNWEIGHTED),
+applies the sommelier weights per block at load, and scores candidate wines
+against a user's taste profile.
+
+Taste profile = rating-weighted average of the user's liked wines' vectors
+(weight = rating - 3.0, like the recipe taste-profile CB). A user who rated a
+wine 5 pulls hard toward it; a 2 pushes away.
+
+Weights are applied here (not baked into the artifact) so they can be retuned —
+or overridden per request ("emphasize grape") — without recomputing the matrix.
+
+Public API
+----------
+    cb_available() -> bool
+    cb_scores(liked: list[(wine_id, rating)], candidate_ids) -> dict[wine_id, score]
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import numpy as np
+import scipy.sparse as sp
+
+MODELS_DIR = Path("models")
+_MATRIX = MODELS_DIR / "wine_cb_matrix.npz"
+_IDS    = MODELS_DIR / "wine_cb_ids.npy"
+_BLOCKS = MODELS_DIR / "wine_cb_blocks.json"
+
+# Sommelier weights (normalized). Default; callers may override per request.
+DEFAULT_WEIGHTS = {"acidity": 0.368, "body": 0.368, "region": 0.158,
+                   "abv": 0.053, "grape": 0.053}
+
+_state: dict | None = None
+
+
+def _load() -> dict | None:
+    """Lazy-load artifacts once. Returns None if CB hasn't been built."""
+    global _state
+    if _state is not None:
+        return _state or None
+    if not (_MATRIX.exists() and _IDS.exists() and _BLOCKS.exists()):
+        _state = {}
+        return None
+    mat = sp.load_npz(_MATRIX).tocsr().astype(np.float64)
+    ids = np.load(_IDS)
+    blocks = json.loads(_BLOCKS.read_text(encoding="utf-8"))
+    _state = {
+        "mat": mat,
+        "ids": ids,
+        "row_of": {int(w): i for i, w in enumerate(ids)},
+        "blocks": blocks["blocks"],
+    }
+    return _state
+
+
+def _apply_weights(mat: sp.csr_matrix, blocks: dict, weights: dict) -> sp.csr_matrix:
+    """Scale each block of a (copy of the) matrix by its weight."""
+    m = mat.tolil(copy=True)
+    g, r = blocks["grape"], blocks["region"]
+    m[:, g["start"]:g["end"]] = m[:, g["start"]:g["end"]] * weights["grape"]
+    m[:, r["start"]:r["end"]] = m[:, r["start"]:r["end"]] * weights["region"]
+    m[:, blocks["acidity"]["col"]] = m[:, blocks["acidity"]["col"]] * weights["acidity"]
+    m[:, blocks["body"]["col"]]    = m[:, blocks["body"]["col"]]    * weights["body"]
+    m[:, blocks["abv"]["col"]]     = m[:, blocks["abv"]["col"]]     * weights["abv"]
+    return m.tocsr()
+
+
+def cb_available() -> bool:
+    return _load() is not None
+
+
+def cb_scores(liked, candidate_ids, weights: dict | None = None) -> dict[int, float]:
+    """
+    Cosine similarity between the user's taste profile and each candidate.
+
+    liked         : list of (wine_id, rating)
+    candidate_ids : iterable of wine_id to score
+    Returns {wine_id: cosine in [-1, 1]} (0.0 for wines not in the matrix or
+    when there is no usable taste profile).
+    """
+    st = _load()
+    if st is None or not liked:
+        return {int(c): 0.0 for c in candidate_ids}
+
+    w = weights or DEFAULT_WEIGHTS
+    wmat = _apply_weights(st["mat"], st["blocks"], w)
+    row_of = st["row_of"]
+
+    # taste profile: rating-weighted mean of liked wine rows (weight = rating-3)
+    prof = None
+    wsum = 0.0
+    for wine_id, rating in liked:
+        i = row_of.get(int(wine_id))
+        if i is None:
+            continue
+        coeff = float(rating) - 3.0
+        if coeff == 0.0:
+            continue
+        vec = wmat.getrow(i).toarray().ravel() * coeff
+        prof = vec if prof is None else prof + vec
+        wsum += abs(coeff)
+    if prof is None or wsum == 0.0:
+        return {int(c): 0.0 for c in candidate_ids}
+    prof /= wsum
+    pn = np.linalg.norm(prof)
+    if pn == 0.0:
+        return {int(c): 0.0 for c in candidate_ids}
+
+    out: dict[int, float] = {}
+    for c in candidate_ids:
+        i = row_of.get(int(c))
+        if i is None:
+            out[int(c)] = 0.0
+            continue
+        v = wmat.getrow(i).toarray().ravel()
+        vn = np.linalg.norm(v)
+        out[int(c)] = float(prof @ v / (pn * vn)) if vn else 0.0
+    return out
