@@ -20,6 +20,7 @@ export function WineForYouPage({ userId }: Props) {
   const [error,     setError]     = useState<string | null>(null)
   const [hasAsked,  setHasAsked]  = useState(false)
   const [dismissed, setDismissed] = useState<Set<number>>(new Set())
+  const [rated,     setRated]     = useState<Set<number>>(new Set())
   const [styles,    setStyles]    = useState<Set<string>>(new Set())
 
   const toggleStyle = (s: string) =>
@@ -34,6 +35,7 @@ export function WineForYouPage({ userId }: Props) {
     setError(null)
     setHasAsked(true)
     setDismissed(new Set())
+    setRated(new Set())
     try {
       const data = await getRankedWines(SUGGEST_COUNT, userId, [...styles])
       setWines(data)
@@ -45,7 +47,7 @@ export function WineForYouPage({ userId }: Props) {
   }, [userId, styles])
 
   const handleRated   = (id: number) =>
-    setDismissed(prev => new Set([...prev, id]))
+    setRated(prev => new Set([...prev, id]))
   const handleDismiss = (id: number) =>
     setDismissed(prev => new Set([...prev, id]))
 
@@ -219,6 +221,7 @@ export function WineForYouPage({ userId }: Props) {
                           key={w.wine_id}
                           wine={w}
                           userId={userId}
+                          isRated={rated.has(w.wine_id)}
                           onRated={()   => handleRated(w.wine_id)}
                           onDismiss={() => handleDismiss(w.wine_id)}
                         />

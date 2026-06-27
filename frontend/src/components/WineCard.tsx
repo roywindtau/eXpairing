@@ -11,6 +11,7 @@ import { rateWine } from '../api/wine'
 interface Props {
   wine:       WineOut
   userId:     number
+  isRated?:   boolean
   onRated?:   () => void
   onDismiss?: () => void
 }
@@ -53,11 +54,9 @@ function StarRating({
           )
         })}
       </div>
-      {(hovered > 0 || selected > 0) && (
-        <span style={{ fontSize: 11, color: 'var(--gray-500)', height: 14 }}>
-          {selected > 0 ? `Rated: ${labels[selected]}` : labels[hovered]}
-        </span>
-      )}
+      <span style={{ fontSize: 11, color: 'var(--gray-500)', height: 14, display: 'block' }}>
+        {selected > 0 ? `Rated: ${labels[selected]}` : hovered > 0 ? labels[hovered] : ''}
+      </span>
     </div>
   )
 }
@@ -84,48 +83,45 @@ export function styleTint(style: string | null): { background: string; borderLef
 }
 
 // ── main card ───────────────────────────────────────────────────────────
-export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
-  const [phase,      setPhase]      = useState<'idle' | 'rating' | 'rated'>('idle')
+export function WineCard({ wine, userId, isRated, onRated, onDismiss }: Props) {
+  const [showStars,  setShowStars]  = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const handleRate = async (stars: number) => {
     setSubmitting(true)
     try {
       await rateWine(userId, wine.wine_id, stars)
-      setPhase('rated')
-      setTimeout(() => onRated?.(), 800)
+      onRated?.()
     } finally {
       setSubmitting(false)
     }
   }
 
-  // Rated confirmation state
-  if (phase === 'rated') {
-    return (
-      <div className="card" style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        minHeight: 120, background: 'var(--green-50)',
-        border: '1px solid var(--green-100)',
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 28, marginBottom: 6 }}>✓</div>
-          <p style={{ fontSize: 14, color: 'var(--green-700)', fontWeight: 500 }}>
-            Rated!
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  // Most informative subtitle line: wine style + grape variety
   const subtitle = [wine.style, wine.variety].filter(Boolean).join(' · ')
-
 
   return (
     <div className="card" style={{
       display: 'flex', flexDirection: 'column', gap: 0, height: '100%',
+      position: 'relative',
       ...styleTint(wine.style),
+      ...(isRated ? { opacity: 0.6 } : {}),
     }}>
+
+      {/* Rated overlay — sits on top without shifting layout */}
+      {isRated && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(255,255,255,0.55)', borderRadius: 'inherit', zIndex: 1,
+          pointerEvents: 'none',
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--green-700)',
+            background: 'var(--green-50)', border: '1px solid var(--green-200)',
+            borderRadius: 20, padding: '3px 12px' }}>
+            ✓ Rated
+          </span>
+        </div>
+      )}
 
       {/* Header row */}
       <div style={{ marginBottom: 10 }}>
@@ -148,35 +144,33 @@ export function WineCard({ wine, userId, onRated, onDismiss }: Props) {
         </div>
       </div>
 
-      {/* Rating prompt (inline) */}
-      {phase === 'rating' && (
-        <div style={{
-          marginTop: 8, padding: '8px 0',
-          borderTop: '1px solid var(--gray-100)',
-          borderBottom: '1px solid var(--gray-100)',
-        }}>
-          <StarRating onRate={handleRate} submitting={submitting} />
-        </div>
-      )}
+      {/* Star rating — always in DOM to avoid layout shift; hidden until Rate clicked */}
+      <div style={{
+        marginTop: 8, padding: '8px 0',
+        borderTop: '1px solid var(--gray-100)',
+        borderBottom: '1px solid var(--gray-100)',
+        visibility: showStars ? 'visible' : 'hidden',
+      }}>
+        <StarRating onRate={handleRate} submitting={submitting} />
+      </div>
 
-      {/* Action buttons */}
-      {phase === 'idle' && (
-        <div style={{
-          display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 10,
-          borderTop: '1px solid var(--gray-100)',
-        }}>
-          <button
-            className="btn btn-primary"
-            style={{ flex: 1 }}
-            onClick={() => setPhase('rating')}
-          >
-            ★ Rate
-          </button>
-          <button className="btn btn-ghost" onClick={onDismiss}>
-            Dismiss
-          </button>
-        </div>
-      )}
+      {/* Action buttons — always in DOM, Rate button hidden once stars are showing */}
+      <div style={{
+        display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 10,
+        borderTop: '1px solid var(--gray-100)',
+      }}>
+        <button
+          className="btn btn-primary"
+          style={{ flex: 1, visibility: showStars ? 'hidden' : 'visible' }}
+          onClick={() => setShowStars(true)}
+          disabled={isRated}
+        >
+          ★ Rate
+        </button>
+        <button className="btn btn-ghost" onClick={onDismiss} disabled={isRated}>
+          Dismiss
+        </button>
+      </div>
     </div>
   )
 }

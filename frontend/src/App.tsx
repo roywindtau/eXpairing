@@ -34,14 +34,14 @@ export default function App() {
     <BrowserRouter>
       <div className="app-shell">
         <nav className="nav">
-          <div className="nav-brand">
+          <NavLink to="/" className="nav-brand" style={{ textDecoration: 'none', color: 'inherit' }}>
             <span>🍳</span> Fridge2Fork
-          </div>
+          </NavLink>
           <div className="nav-links">
+            <NavLink to="/wine"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Wine</NavLink>
             <NavLink to="/pantry"   className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Pantry</NavLink>
             <NavLink to="/feed"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Recipes</NavLink>
             <NavLink to="/browse"   className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Browse</NavLink>
-            <NavLink to="/wine"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Wine</NavLink>
             <NavLink to="/list"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>List</NavLink>
             <NavLink to="/profile"  className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Profile</NavLink>
           </div>

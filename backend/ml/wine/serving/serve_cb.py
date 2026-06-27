@@ -123,3 +123,30 @@ def cb_scores(liked, candidate_ids, weights: dict | None = None) -> dict[int, fl
         vn = np.linalg.norm(v)
         out[int(c)] = float(prof @ v / (pn * vn)) if vn else 0.0
     return out
+
+
+def pairwise_similarity(wine_ids: list[int]) -> dict[tuple[int, int], float]:
+    """
+    Pairwise CB cosine similarity between a list of wines.
+    Returns {(min_id, max_id): cosine} for all pairs. Used by MMR.
+    """
+    st = _load()
+    if st is None:
+        return {}
+    wmat = _apply_weights(st["mat"], st["blocks"], DEFAULT_WEIGHTS)
+    row_of = st["row_of"]
+    vecs: dict[int, np.ndarray] = {}
+    for wid in wine_ids:
+        i = row_of.get(int(wid))
+        if i is None:
+            continue
+        v = wmat.getrow(i).toarray().ravel()
+        n = np.linalg.norm(v)
+        if n > 0:
+            vecs[int(wid)] = v / n
+    out: dict[tuple[int, int], float] = {}
+    ids = list(vecs.keys())
+    for i, a in enumerate(ids):
+        for b in ids[i + 1:]:
+            out[(min(a, b), max(a, b))] = float(vecs[a] @ vecs[b])
+    return out
