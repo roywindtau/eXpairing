@@ -56,9 +56,13 @@ def cf_available() -> bool:
 
 
 def _fold_in(liked, st) -> np.ndarray | None:
-    """Solve for the user's latent vector from rated items. None if no signal."""
+    """Solve for the user's latent vector from positively-rated items.
+    Ratings < 3 are excluded — they are negative signals and don't belong
+    in an implicit-positive model (CB handles dislikes via signed coefficients)."""
     rows, conf = [], []
     for wine_id, rating in liked:
+        if float(rating) < 3.0:
+            continue
         i = st["row_of"].get(int(wine_id))
         if i is None:
             continue
