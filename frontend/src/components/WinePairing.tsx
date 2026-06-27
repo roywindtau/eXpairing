@@ -11,7 +11,7 @@ interface Props {
   topN?: number
 }
 
-export function WinePairing({ recipeId, topN = 8 }: Props) {
+export function WinePairing({ recipeId, topN = 5 }: Props) {
   const [pairs, setPairs] = useState<PairedWine[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,14 +37,16 @@ export function WinePairing({ recipeId, topN = 8 }: Props) {
         <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', margin: 0 }}>
           🍷 Wine pairing
         </h2>
-        <button
-          className="btn btn-primary"
-          style={{ fontSize: 13 }}
-          onClick={handlePair}
-          disabled={loading}
-        >
-          {loading ? 'Finding…' : pairs ? 'Refresh' : 'Pair me a wine'}
-        </button>
+        {!pairs && (
+          <button
+            className="btn btn-primary"
+            style={{ fontSize: 13 }}
+            onClick={handlePair}
+            disabled={loading}
+          >
+            {loading ? 'Finding…' : 'Pair me a wine'}
+          </button>
+        )}
       </div>
 
       {error && (
@@ -66,16 +68,19 @@ export function WinePairing({ recipeId, topN = 8 }: Props) {
               border: '1px solid var(--gray-200)', background: 'var(--gray-50, #fafafa)',
             }}>
               <div style={{ minWidth: 0 }}>
+                {/* menu-style title: Producer — Wine name */}
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--gray-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {w.wine_name}
+                  {[w.producer, w.wine_name].filter(Boolean).join(' — ')}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2 }}>
-                  {[w.style, w.variety].filter(Boolean).join(' · ')}
-                  {w.harmonize_csv && <span> · pairs with {w.harmonize_csv}</span>}
+                {/* subtitle: variety, region/country */}
+                <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2, fontStyle: 'italic' }}>
+                  {[w.variety, w.region, w.country].filter(Boolean).join(', ')}
                 </div>
               </div>
               <span className="badge badge-amber" style={{ fontSize: 12, flexShrink: 0 }}>
-                {Math.round(w.pairing_score * 100)}% match
+                {w.pairing_score > 0
+                  ? `${Math.round(w.pairing_score * 100)}% match`
+                  : 'versatile pick'}
               </span>
             </li>
           ))}

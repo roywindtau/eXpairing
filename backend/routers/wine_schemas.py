@@ -19,6 +19,7 @@ class WineOut(BaseModel):
     n_ratings:     int = 0
     abv:           Optional[float] = None
     producer:      Optional[str] = None
+    country:       Optional[str] = None
     style:         Optional[str] = None
     variety:       Optional[str] = None
     harmonize_csv: Optional[str] = None
@@ -37,7 +38,7 @@ class WineEventIn(BaseModel):
 
 class PairRequest(BaseModel):
     recipe_id: int
-    top_n:     int = 10
+    top_n:     int = 5
 
 
 class PairedWineOut(WineOut):

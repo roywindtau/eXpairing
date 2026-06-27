@@ -115,8 +115,47 @@ KEYWORD_TO_CATEGORY: dict[str, list[str]] = {
     "chocolate": ["Dessert"], "cocoa": ["Dessert"], "honey": ["Dessert"],
     "caramel": ["Dessert"], "maple syrup": ["Dessert"], "marshmallow": ["Dessert"],
     "frosting": ["Dessert"], "icing": ["Dessert"], "fudge": ["Dessert"],
-    # NOTE: plain "sugar"/"vanilla" are NOT here -- too common (baking staples),
-    # they would tag almost everything Dessert. Only stronger sweet signals.
+    "vanilla": ["Dessert"], "vanilla extract": ["Dessert"], "banana": ["Dessert"],
+    "cinnamon": ["Dessert"], "nutmeg": ["Dessert"], "powdered sugar": ["Dessert"],
+    "brown sugar": ["Dessert"], "condensed milk": ["Dessert", "Creamy"],
+    "berries": ["Dessert"], "strawberry": ["Dessert"], "blueberry": ["Dessert"],
+    "apple": ["Dessert"], "pumpkin": ["Dessert"], "dates": ["Dessert"],
+    "raisins": ["Dessert"], "raisin": ["Dessert"], "dried fruit": ["Dessert"],
+
+    # ── Nutty (tahini/sesame/tree nuts) -> not in the rule CSV; rule quality for
+    # this axis comes from web-sourced sommelier guidance (serve_pairing) ──
+    "tahini": ["Nutty"], "sesame": ["Nutty"], "sesame seeds": ["Nutty"],
+    "peanut": ["Nutty"], "peanut butter": ["Nutty"], "almond": ["Nutty"],
+    "almonds": ["Nutty"], "walnut": ["Nutty"], "walnuts": ["Nutty"],
+    "cashew": ["Nutty"], "cashews": ["Nutty"], "pecan": ["Nutty"],
+    "pistachio": ["Nutty"], "hazelnut": ["Nutty"], "pine nuts": ["Nutty"],
+    # NOTE: plain "sugar" stays out -- it appears in savory dishes too. We rely on
+    # the stronger sweet signals above (vanilla, cinnamon, fruit, chocolate...).
+
+    # ── Creamy (dairy richness beyond the cheese list) ──
+    # NOTE: plain "butter" and "milk" are intentionally NOT here -- they are
+    # near-universal cooking fat/liquid (butter was the 2nd most common ingredient
+    # overall), so tagging them Creamy floods half the corpus. We require a real
+    # cream signal instead.
+    "yogurt": ["Creamy"], "rice pudding": ["Creamy", "Dessert"],
+    "coconut milk": ["Creamy"], "evaporated milk": ["Creamy"],
+
+    # ── Umami / savory ──
+    "soy sauce": ["Salty Snack", "Spicy"], "miso": ["Salty Snack"],
+    "fish sauce": ["Seafood", "Salty Snack"], "sesame oil": ["Nutty"],
+    "worcestershire": ["Salty Snack"], "mushroom": ["Salty Snack"],
+    "mushrooms": ["Salty Snack"],
+
+    # ── Produce / herbs ──
+    # "Vegetarian" is NOT a pairing axis (it's a dietary label, not a taste), so
+    # vegetables map to the real sensory axis they actually express, or to nothing
+    # (-> safe-pick fallback) when they're flavor-neutral. Leafy/green/tomatoey
+    # produce leans fresh-acidic; avocado is creamy.
+    "spinach": ["Acidic"], "broccoli": ["Acidic"], "zucchini": ["Acidic"],
+    "asparagus": ["Acidic"], "bell pepper": ["Acidic"], "basil": ["Acidic"],
+    "avocado": ["Creamy"], "chickpeas": ["Nutty"], "lentils": ["Salty Snack"],
+    # eggplant, cauliflower, peas, carrot, potato, tofu -> intentionally no axis
+    # (flavor-neutral on their own; let stronger ingredients or the fallback decide)
 }
 
 # Precompile a word-boundary regex per keyword. \b guards against "ham" in "graham".
@@ -125,19 +164,52 @@ _PATTERNS: list[tuple[re.Pattern, list[str]]] = [
     for kw, cats in KEYWORD_TO_CATEGORY.items()
 ]
 
-FALLBACK = "Vegetarian"
+# ── Combination rules ────────────────────────────────────────────────────────
+# Some signals only emerge from a COMBINATION of ingredients, not any one alone.
+# Each rule: ALL of `requires` must be present (as whole words anywhere in the
+# ingredient list) -> add `add` categories with weight `weight`.
+#
+# Example: plain butter or plain milk is just cooking fat/liquid, but a dish with
+# BOTH is heading toward a creamy/rich profile (cream sauces, baked custards...).
+COMBINATION_RULES: list[dict] = [
+    {"requires": ["butter", "milk"], "add": ["Creamy"], "weight": 1.0},
+    {"requires": ["butter", "flour", "milk"], "add": ["Creamy"], "weight": 1.0},  # roux/bechamel
+]
+
+_COMBO_PATTERNS = [
+    {
+        "requires": [re.compile(rf"\b{re.escape(k)}\b", re.IGNORECASE) for k in r["requires"]],
+        "add": r["add"],
+        "weight": r["weight"],
+    }
+    for r in COMBINATION_RULES
+]
 
 
 def recipe_categories(ingredients: list[str]) -> dict[str, float]:
-    """Raw category weights for a recipe (how many ingredients hit each category)."""
+    """
+    Raw category weights for a recipe (how many ingredients hit each category).
+
+    Returns {} when NO signal ingredient matched. We deliberately do NOT fall
+    back to a default category: a recipe we can't read should produce an empty
+    (zero) vector so the scorer returns "no confident pairing" -- far better than
+    matching a wall of unrelated wines on a meaningless dietary label.
+    """
     weights: dict[str, float] = {}
+    # pass 1: per-ingredient keyword matches
     for ing in ingredients:
         for pat, cats in _PATTERNS:
             if pat.search(ing):
                 for c in cats:
                     weights[c] = weights.get(c, 0.0) + 1.0
-    if not weights:
-        weights[FALLBACK] = 1.0
+
+    # pass 2: combination rules (categories that need several ingredients together)
+    blob = " | ".join(ingredients)
+    for rule in _COMBO_PATTERNS:
+        if all(p.search(blob) for p in rule["requires"]):
+            for c in rule["add"]:
+                weights[c] = weights.get(c, 0.0) + rule["weight"]
+
     return weights
 
 
@@ -166,19 +238,19 @@ def _report() -> None:
 
     import collections
     cat_hits = collections.Counter()
-    fallback_only = 0
+    no_signal = 0
     for (csv,) in recipes:
         ings = [i.strip() for i in (csv or "").split(",") if i.strip()]
         cats = recipe_categories(ings)
-        if set(cats) == {FALLBACK}:
-            fallback_only += 1
+        if not cats:
+            no_signal += 1
         for c in cats:
             cat_hits[c] += 1
 
     n = len(recipes)
     print(f"recipes: {n:,}")
-    print(f"fell back to {FALLBACK} only (no signal): "
-          f"{fallback_only:,} ({100*fallback_only/n:.1f}%)\n")
+    print(f"no signal at all (empty vector -> no pairing): "
+          f"{no_signal:,} ({100*no_signal/n:.1f}%)\n")
     print("recipes touching each category:")
     for cat in CATEGORIES:
         h = cat_hits[cat]

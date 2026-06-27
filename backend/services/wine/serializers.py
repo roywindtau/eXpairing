@@ -19,6 +19,7 @@ def to_out(w: Wine) -> WineOut:
         n_ratings=w.n_ratings or 0,
         abv=w.abv,
         producer=w.producer,
+        country=w.country,
         style=w.style,
         variety=w.grapes_csv,
         harmonize_csv=w.harmonize_csv,

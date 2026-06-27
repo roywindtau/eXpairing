@@ -84,11 +84,13 @@ def pair_wine_with_recipe(payload: PairRequest, db: Session = Depends(get_db)):
     "Pair me a wine for this recipe."
 
     Pure content-based: maps the recipe's ingredients to the 12 food categories
-    (Module 3), then ranks wines by cosine similarity in that shared space
-    against each wine's harmonize-derived category vector (Modules 2 + 4).
-    No user history is used.
+    (Module 3), then ranks wines by a blend of category cosine + empirical pairing
+    rules (Modules 2 + 4). The top-scoring pool is MMR-reranked for light variety
+    (so the 5 picks aren't five near-identical bottles). No user history is used.
     """
     from backend.ml.wine.serving.serve_pairing import pair_wines, pairing_available
+    from backend.ml.wine.serving import serve_cb
+    from backend.services.wine.helpers import mmr_rerank
 
     recipe = db.get(Recipe, payload.recipe_id)
     if recipe is None:
@@ -101,19 +103,35 @@ def pair_wine_with_recipe(payload: PairRequest, db: Session = Depends(get_db)):
         )
 
     top_n = max(1, min(payload.top_n, 100))
-    ranked = pair_wines(recipe.ingredients, top_n=top_n)
+    # over-fetch a pool so MMR has room to diversify, then trim to top_n.
+    ranked = pair_wines(recipe.ingredients, top_n=top_n * 4)
     if not ranked:
-        return []
+        # Weak/no sensory signal (e.g. a plain veg dish we can't read): rather than
+        # a misleading wall, offer a versatile crowd-pleaser. Dry sparkling/rosé is
+        # the classic "goes with anything" safe pick. score 0 -> UI flags it as a
+        # general suggestion, not a precise match.
+        bayesian = (Wine.avg_rating * Wine.n_ratings + 3.5 * 5) / (Wine.n_ratings + 5)
+        safe = (db.query(Wine)
+                  .filter(Wine.style.in_(["Sparkling", "Rosé"]))
+                  .order_by(bayesian.desc().nullslast())
+                  .limit(top_n).all())
+        return [PairedWineOut(**_to_out(w).model_dump(), pairing_score=0.0)
+                for w in safe]
 
-    wines = {w.id: w for w in
-             db.query(Wine).filter(Wine.id.in_([wid for wid, _ in ranked])).all()}
-    out: list[PairedWineOut] = []
-    for wid, score in ranked:
-        w = wines.get(wid)
-        if w is None:
-            continue
-        out.append(PairedWineOut(**_to_out(w).model_dump(), pairing_score=score))
-    return out
+    score_of = {wid: score for wid, score in ranked}
+    pool = {w.id: w for w in
+            db.query(Wine).filter(Wine.id.in_(list(score_of))).all()}
+    candidates = [pool[wid] for wid, _ in ranked if wid in pool]
+
+    # MMR rerank for light diversity (lambda high = stay close to relevance).
+    cb_sim = (serve_cb.pairwise_similarity([w.id for w in candidates])
+              if serve_cb.cb_available() else {})
+    diversified = mmr_rerank(candidates, score_of, top_n, cb_sim=cb_sim, lambda_=0.8)
+
+    return [
+        PairedWineOut(**_to_out(w).model_dump(), pairing_score=score_of[w.id])
+        for w in diversified
+    ]
 
 
 # ── POST /wine-events ───────────────────────────────────────────────────

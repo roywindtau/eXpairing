@@ -57,7 +57,9 @@ CATEGORIES: list[str] = [
     "Salty Snack",
     "Smoky BBQ",
     "Dessert",
-    "Vegetarian",
+    "Nutty",      # tahini/sesame/almond etc. Not in the rule CSV; rule quality
+                  # for this axis is sourced from sommelier guidance (see
+                  # serve_pairing._WEB_RULES) rather than the empirical table.
 ]
 
 CATEGORY_INDEX: dict[str, int] = {c: i for i, c in enumerate(CATEGORIES)}
@@ -102,7 +104,7 @@ HARMONIZE_TO_CATEGORY: dict[str, list[str] | None] = {
     "Mild Cheese":     ["Cheese"],
     "Maturated Cheese": ["Cheese"],
     "Medium-cured Cheese": ["Cheese"],
-    "Eggplant Parmigiana": ["Cheese", "Vegetarian"],
+    "Eggplant Parmigiana": ["Cheese"],
     # creamy / rich
     "Cream":           ["Creamy"],
     "Risotto":         ["Creamy"],
@@ -120,8 +122,8 @@ HARMONIZE_TO_CATEGORY: dict[str, list[str] | None] = {
     "French Fries":    ["Salty Snack"],
     "Baked Potato":    ["Salty Snack"],
     "Snack":           ["Salty Snack"],
-    "Beans":           ["Salty Snack", "Vegetarian"],
-    "Chestnut":        ["Salty Snack"],
+    "Beans":           ["Salty Snack"],
+    "Chestnut":        ["Nutty"],
     # dessert / sweet
     "Dessert":         ["Dessert"],
     "Sweet Dessert":   ["Dessert"],
@@ -135,10 +137,10 @@ HARMONIZE_TO_CATEGORY: dict[str, list[str] | None] = {
     "Fruit":           ["Dessert"],
     # acidic / tomato
     "Tomato Dishes":   ["Acidic"],
-    # vegetarian
-    "Vegetarian":      ["Vegetarian"],
-    "Salad":           ["Vegetarian"],
-    "Mushrooms":       ["Vegetarian"],
+    # vegetable-forward -> their real sensory axis (Vegetarian is not an axis)
+    "Vegetarian":      ["Acidic"],   # light/fresh default
+    "Salad":           ["Acidic"],
+    "Mushrooms":       ["Salty Snack"],
     # pasta / pizza family: cheese-forward, often a creamy/rich base
     "Pasta":           ["Cheese", "Creamy"],
     "Pizza":           ["Cheese", "Creamy"],

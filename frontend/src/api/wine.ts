@@ -12,6 +12,7 @@ export interface WineOut {
   n_ratings:     number
   abv:           number | null
   producer:      string | null
+  country:       string | null
   style:         string | null
   variety:       string | null
   harmonize_csv: string | null
