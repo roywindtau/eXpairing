@@ -131,8 +131,8 @@ on 200 real users — held-out wines rank at the **0.92 mean percentile** (media
 - `WineForYouPage.tsx`, `WineCard.tsx`, `api/wine.ts`, `index.css`.
 
 **Tooling / tests**
-- `run_backend.sh` — local uvicorn with `--reload`; `docker-compose.yml` dev
-  reload + source mount.
+- `docker-compose.yml` dev reload + source mount (backend runs with `--reload`
+  inside the container; use `./dev.sh`).
 - `tests/wine/test_wine_scoring.py` — cold/warming/warm routing, style filter,
   no-re-recommend, blend (7 tests).
 

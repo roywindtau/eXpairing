@@ -1,0 +1,22 @@
+# Dev override — auto-merged by `docker compose up` on top of docker-compose.yml.
+# Swaps the nginx prod frontend for a Vite dev server with live HMR, so frontend
+# edits show up in the browser instantly without a rebuild (matches the backend's
+# --reload). To run the prod build instead, use:
+#   docker compose -f docker-compose.yml up
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend.dev
+    # Vite dev server runs on 5173 inside the container (override the 5173:80
+    # prod mapping from the base file).
+    ports: !override
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      # Live source mount so HMR sees edits without rebuilding the image.
+      - ./frontend:/app
+      # Keep the container's node_modules (don't let the host's shadow it).
+      - /app/node_modules
+    command: ["npm", "run", "dev", "--", "--host", "--port", "5173"]

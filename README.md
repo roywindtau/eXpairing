@@ -262,18 +262,36 @@ After building, restart the backend — it picks up model files automatically.
 
 ## Docker
 
+The recommended way to run everything:
+
 ```bash
-docker compose up --build
+./dev.sh                 # start (seeds the dev DB if needed, then brings the stack up)
+./dev.sh --rebuild       # force image rebuild after dependency changes
 # backend  → http://localhost:8000
 # frontend → http://localhost:5173
 ```
 
-Or use the one-command helper (seeds the dev DB if needed, then brings the
-stack up):
+Both services **hot-reload** in dev — edit a file and the change shows up
+automatically, no rebuild:
+- **Backend** runs under `uvicorn --reload` with the source bind-mounted.
+- **Frontend** runs the **Vite dev server** with HMR (live source mount).
+
+### How the dev setup is wired
+
+`docker compose` auto-merges `docker-compose.override.yml` on top of
+`docker-compose.yml`. The override swaps the production frontend (an nginx image
+serving a static build) for the Vite dev server. That's why there are two
+frontend Dockerfiles:
+- `Dockerfile.frontend`     — production: build + serve with nginx.
+- `Dockerfile.frontend.dev` — development: run `vite` with HMR.
+
+### Running the production frontend build locally
+
+To run the nginx static build instead of the dev server (i.e. ignore the
+override), point Compose at the base file only:
 
 ```bash
-./dev.sh                 # start
-./dev.sh --rebuild       # force image rebuild after dependency changes
+docker compose -f docker-compose.yml up --build
 ```
 
 ---
