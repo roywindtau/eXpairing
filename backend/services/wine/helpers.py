@@ -57,3 +57,51 @@ def minmax(d: dict[int, float]) -> dict[int, float]:
     if hi - lo < 1e-12:
         return {k: 0.0 for k in d}
     return {k: (v - lo) / (hi - lo) for k, v in d.items()}
+
+
+MMR_LAMBDA = 0.7   # relevance vs. diversity trade-off (higher = more relevance)
+
+
+def _wine_similarity(a: Wine, b: Wine, cb_sim: dict[tuple[int, int], float]) -> float:
+    """Pairwise wine similarity for MMR. Uses precomputed CB cosines when available,
+    falls back to style+grape overlap."""
+    key = (min(a.id, b.id), max(a.id, b.id))
+    if key in cb_sim:
+        return cb_sim[key]
+    # fallback: same style = 0.5, same primary grape = +0.5
+    same_style = float(a.style == b.style and a.style is not None)
+    grapes_a = set((a.grapes_csv or "").split(","))
+    grapes_b = set((b.grapes_csv or "").split(","))
+    overlap = len(grapes_a & grapes_b) / len(grapes_a | grapes_b) if grapes_a | grapes_b else 0.0
+    return 0.5 * same_style + 0.5 * overlap
+
+
+def mmr_rerank(
+    candidates: list[Wine],
+    scores: dict[int, float],
+    top_n: int,
+    cb_sim: dict[tuple[int, int], float] | None = None,
+    lambda_: float = MMR_LAMBDA,
+) -> list[Wine]:
+    """
+    Maximal Marginal Relevance reranking for diversity.
+    MMR(w) = λ · score(w) − (1−λ) · max_sim(w, already_selected)
+    Always picks the highest-scored wine first, then penalizes subsequent
+    picks that are too similar to what's already selected.
+    """
+    if len(candidates) <= top_n:
+        return candidates
+    cb_sim = cb_sim or {}
+    remaining = list(candidates)
+    selected: list[Wine] = []
+    while remaining and len(selected) < top_n:
+        if not selected:
+            best = max(remaining, key=lambda w: scores.get(w.id, 0.0))
+        else:
+            def mmr_score(w: Wine, sel: list[Wine] = selected) -> float:
+                max_sim = max(_wine_similarity(w, s, cb_sim) for s in sel)
+                return lambda_ * scores.get(w.id, 0.0) - (1.0 - lambda_) * max_sim
+            best = max(remaining, key=mmr_score)
+        selected.append(best)
+        remaining.remove(best)
+    return selected

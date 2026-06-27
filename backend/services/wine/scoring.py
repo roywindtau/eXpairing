@@ -24,6 +24,7 @@ from backend.services.wine.helpers import (
     candidate_pool_size,
     liked_wines,
     minmax,
+    mmr_rerank,
     popularity_top_n,
     user_styles,
 )
@@ -72,15 +73,17 @@ def rank_wines(db: Session, user_id: int, top_n: int = 5,
     pop = minmax({w.id: ((w.avg_rating or 0) * (w.n_ratings or 0) + 17.5)
                         / ((w.n_ratings or 0) + 5) for w in candidates})
 
-    scored = []
+    scores: dict[int, float] = {}
     for wid in cand_ids:
         if warm:
-            s = CF_WEIGHT * cf.get(wid, 0.0) + CB_WEIGHT * cb.get(wid, 0.0)
+            scores[wid] = CF_WEIGHT * cf.get(wid, 0.0) + CB_WEIGHT * cb.get(wid, 0.0)
         elif cb:
-            s = 0.7 * cb.get(wid, 0.0) + 0.3 * pop.get(wid, 0.0)
+            scores[wid] = 0.7 * cb.get(wid, 0.0) + 0.3 * pop.get(wid, 0.0)
         else:
-            s = pop.get(wid, 0.0)
-        scored.append((s, wid))
+            scores[wid] = pop.get(wid, 0.0)
 
-    scored.sort(key=lambda t: t[0], reverse=True)
-    return [by_id[wid] for _, wid in scored[:top_n]]
+    # 4. MMR rerank: take top 3×top_n by score, diversify via pairwise CB cosine
+    mmr_pool_ids = sorted(cand_ids, key=lambda w: scores[w], reverse=True)[: top_n * 3]
+    mmr_pool = [by_id[wid] for wid in mmr_pool_ids]
+    cb_sim = serve_cb.pairwise_similarity(mmr_pool_ids) if serve_cb.cb_available() else {}
+    return mmr_rerank(mmr_pool, scores, top_n, cb_sim=cb_sim)
