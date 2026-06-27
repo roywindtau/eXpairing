@@ -80,16 +80,19 @@ def seed(limit: int = 0) -> None:
     db = SessionLocal()
 
     try:
-        existing = db.query(Recipe).count()
-        if existing > 0:
-            print(f"Recipes table already has {existing} rows. Skipping.")
-            print("To re-seed, truncate the table first.")
-            return
+        # Append-aware: keep any rows already present (e.g. dev-seed recipes)
+        # and skip CSV rows whose id already exists, so this can be run on top
+        # of an existing table without duplicate-PK errors.
+        existing_ids = {rid for (rid,) in db.query(Recipe.id).all()}
+        if existing_ids:
+            print(f"Recipes table already has {len(existing_ids):,} rows; "
+                  f"appending new ids only.")
 
         print(f"Loading {RECIPES_CSV} ...")
         batch   = []
         total   = 0
         skipped = 0
+        dupes   = 0
 
         with open(RECIPES_CSV, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -122,6 +125,11 @@ def seed(limit: int = 0) -> None:
                     skipped += 1
                     continue
 
+                if recipe_id in existing_ids:
+                    dupes += 1
+                    continue
+                existing_ids.add(recipe_id)   # guard against in-CSV dup ids too
+
                 steps = parse_list_field(row.get("steps", "[]"))
                 description = (row.get("description") or "").strip() or None
 
@@ -149,7 +157,9 @@ def seed(limit: int = 0) -> None:
             db.bulk_save_objects(batch)
             db.commit()
 
-        print(f"\nDone. Inserted {total:,} recipes. Skipped {skipped:,}.")
+        print(f"\nDone. Inserted {total:,} recipes. "
+              f"Skipped {skipped:,} (no ingredients/bad id), "
+              f"{dupes:,} already present.")
 
     finally:
         db.close()

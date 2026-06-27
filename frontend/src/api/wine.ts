@@ -12,12 +12,18 @@ export interface WineOut {
   n_ratings:     number
   abv:           number | null
   producer:      string | null
+  country:       string | null
   style:         string | null
   variety:       string | null
   harmonize_csv: string | null
   acidity:       string | null
   body:          string | null
   region:        string | null
+}
+
+// a wine paired to a recipe, with its cosine pairing score in [0, 1]
+export interface PairedWine extends WineOut {
+  pairing_score: number
 }
 
 // ── API helpers ─────────────────────────────────────────────────────────────
@@ -35,6 +41,16 @@ export const getRankedWines = (topN = 10, userId?: number, styles?: string[]) =>
       ...(styles && styles.length ? { styles } : {}),
     },
     paramsSerializer: { indexes: null },   // styles=Red&styles=White
+  }).then(r => r.data)
+
+/**
+ * "Pair me a wine for this recipe." Pure content-based: ranks wines by how well
+ * their food-pairing profile matches the recipe's ingredients. No user history.
+ */
+export const pairWines = (recipeId: number, topN = 8) =>
+  api.post<PairedWine[]>('/wine/pair', {
+    recipe_id: recipeId,
+    top_n: topN,
   }).then(r => r.data)
 
 export const rateWine = (userId: number, wineId: number, rating: number) =>

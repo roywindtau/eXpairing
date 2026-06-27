@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getRecipeDetail } from '../api/client'
 import type { RecipeDetail } from '../api/client'
+import { WinePairing } from '../components/WinePairing'
 
-// userId is accepted (App passes it to every page route) but not used here
-// yet — recipe pairing was removed pending the wine-food CB model.
+// userId is accepted (App passes it to every page route) but pairing is pure
+// content-based, so it isn't used here.
 interface Props { userId: number }
 
 export function RecipeDetailPage(_: Props) {
@@ -135,6 +136,11 @@ export function RecipeDetailPage(_: Props) {
           </p>
         </div>
       )}
+
+      {/* Wine pairing */}
+      <div style={{ marginTop: 28 }}>
+        <WinePairing recipeId={recipe.id} />
+      </div>
     </div>
   )
 }
