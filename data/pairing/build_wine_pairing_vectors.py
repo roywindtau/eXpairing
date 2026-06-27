@@ -39,7 +39,7 @@ USED BY
     Module 4 (pairing scorer) loads these to rank wines against a recipe vector.
 
 Run:
-    python -m data.wine.build_wine_pairing_vectors
+    python -m data.pairing.build_wine_pairing_vectors
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from backend.db.database import SessionLocal
 from backend.db.models import Wine
-from data.wine.pairing_vocabulary import (
+from data.pairing.pairing_vocabulary import (
     CATEGORIES,
     CATEGORY_INDEX,
     HARMONIZE_TO_CATEGORY,

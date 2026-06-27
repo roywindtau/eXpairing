@@ -17,7 +17,7 @@ different vocabularies, and this module is the single place that reconciles them
     recipe ingredients    free text (lobster, lamb)   -> 12 categories (Module 3)
 
 The 12 categories come from the labeled pairing dataset
-(data/wine/wine_food_pairings.csv, column `food_category`). We adopt them as the
+(data/pairing/wine_food_pairings.csv, column `food_category`). We adopt them as the
 canonical axes because the pairing RULES (and the test labels) are expressed in
 exactly these terms.
 
@@ -38,7 +38,7 @@ USED BY
     Module 3 (recipe -> category vector) reads CATEGORIES (and its own ing map)
 
 Run (prints a coverage report over the live wine DB):
-    python -m data.wine.pairing_vocabulary
+    python -m data.pairing.pairing_vocabulary
 """
 
 from __future__ import annotations

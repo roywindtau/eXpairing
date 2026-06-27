@@ -21,7 +21,7 @@ How we test it:
     We report what fraction of groups vary, and show concrete examples.
 
 Run:
-    python -m data.wine.check_ingredient_signal
+    python -m data.pairing.check_ingredient_signal
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ import csv
 import statistics
 from pathlib import Path
 
-CSV = Path("data/wine/wine_food_pairings.csv")
+CSV = Path("data/pairing/wine_food_pairings.csv")
 
 
 def main() -> None:
