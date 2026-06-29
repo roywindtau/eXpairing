@@ -410,14 +410,16 @@ backend/
     vision.py                GET /vision/mock, POST /vision/scan,
                                POST /vision/confirm/{user_id}
     shopping.py              GET/POST/PATCH/DELETE /shopping/{user_id}
-    wine.py                  GET /wine/ranked (top-N popular); POST /wine-events
+    wine.py                  GET /wine/ranked (personalized CF+CB, popularity cold start),
+                               POST /wine/pair (recipe pairing), POST /wine-events
   services/
     scoring.py               Core ranking formula (RecipeScore dataclass)
     expiry.py                Urgency score (exponential decay)
     ingredient_match.py      Fuzzy ingredient overlap
     beta_updater.py          Daily preference learning job
     vision_agent.py          GPT-4o vision + ingredient canonicalization
-    (wine ranking/pairing serving code removed — see Wine recommender above)
+    wine/                    Personalized wine ranking + pairing
+                               (scoring.py, helpers.py, serializers.py)
   ml/
     cold_start.py            Preference-seeded cold start CF (with fallback)
     item_similarity.py       Sparse item-item similarity matrix (training)
@@ -427,6 +429,8 @@ backend/
     serve_cb.py              CB serving — cosine similarity at request time
     user_vector.py           Pantry → TF-IDF vector utility
     evaluate.py              RMSE, Precision@K, Recall@K, ablation
+    wine/serving/            Wine serving (loaded by the app): serve_cf.py (ALS),
+                               serve_cb.py (structured CB), serve_pairing.py
     wine/training/           Wine model training (offline; not imported by the app):
                                train_wine_als.py, train_cb.py, item_similarity.py,
                                build_wine_split.py, eval_*.py
@@ -457,14 +461,14 @@ frontend/src/
     RecipeCard.tsx           Score ring + match ring, explainer, Cook→Rate flow, Buy missing button
     ScoreExplainer.tsx       4-component score breakdown bars (unavailable = grayed)
     VisionScanner.tsx        Photo scan → confirm → add to pantry
-    WineCard.tsx             Path-B wine card with score breakdown, star rating
+    WineCard.tsx             Wine card: style tint, star rating, dismiss
   pages/
     OnboardingPage.tsx       First-run: name, beta slider, diet tags
     PantryPage.tsx           Pantry management with expiry rows + scan button
     RecipeFeedPage.tsx       Ranked recipe feed with CF strategy banner + sort-by dropdown
     RecipeDetailPage.tsx     Full recipe + numbered steps
     BrowsePage.tsx           Search/filter all recipes (clickable → detail)
-    WineForYouPage.tsx       "Suggest me a wine" feed (button → top 10 popular)
+    WineForYouPage.tsx       "Suggest me a wine" feed (personalized, style-filtered)
     ProfilePage.tsx          Beta + diet tags + CF progress bar
     ShoppingListPage.tsx     Buy-list: check off items, clear purchased, source recipe attribution
 

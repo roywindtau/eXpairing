@@ -23,7 +23,7 @@ Saved artifacts (models/wine_split/)
     train.npz      training CSR (confidence-weighted)
     test.npz       held-out CSR (K items per eligible user)
     user_ids.npy   matrix-row  -> raw user_id
-    item_ids.npy   matrix-col  -> raw drink_id
+    item_ids.npy   matrix-col  -> raw wine_id
     split_meta.json  parameters used to build the split
 
 Run:

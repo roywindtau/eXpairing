@@ -21,7 +21,7 @@ import scipy.sparse as sp
 DATA_DIR   = Path("data/wine")
 MODELS_DIR = Path("models")
 
-WINE_RATINGS_PATH = DATA_DIR / "wine" / "clean_ratings.csv"
+WINE_RATINGS_PATH = DATA_DIR / "clean_ratings.csv"   # data/wine/clean_ratings.csv
 
 MIN_RATINGS_PER_USER = 5   # wine median is 11; drop the long cold-user tail
 MIN_RATINGS_PER_ITEM = 5   # drop barely-rated wines that can't get a stable factor
@@ -37,9 +37,9 @@ SPLIT_BUILT_ALPHA    = 40.0
 
 def load_ratings(path: Path = WINE_RATINGS_PATH) -> pd.DataFrame:
     print(f"Loading wine ratings from {path} ...")
-    df = pd.read_csv(path, dtype={"drink_id": "int32", "rating": "float32"})
+    df = pd.read_csv(path, dtype={"wine_id": "int32", "rating": "float32"})
     print(f"  {len(df):,} ratings, {df['user_id'].nunique():,} users, "
-          f"{df['drink_id'].nunique():,} wines")
+          f"{df['wine_id'].nunique():,} wines")
     return df
 
 
@@ -57,10 +57,10 @@ def filter_sparse(df: pd.DataFrame, min_user: int, min_item: int) -> pd.DataFram
         rounds += 1
         uc = df.groupby("user_id").size()
         df = df[df["user_id"].isin(uc[uc >= min_user].index)]
-        ic = df.groupby("drink_id").size()
-        df = df[df["drink_id"].isin(ic[ic >= min_item].index)]
+        ic = df.groupby("wine_id").size()
+        df = df[df["wine_id"].isin(ic[ic >= min_item].index)]
         print(f"  round {rounds}: {len(df):,} ratings, "
-              f"{df['user_id'].nunique():,} users, {df['drink_id'].nunique():,} wines")
+              f"{df['user_id'].nunique():,} users, {df['wine_id'].nunique():,} wines")
     return df
 
 
@@ -72,7 +72,7 @@ def build_matrices(df: pd.DataFrame, alpha: float = CONFIDENCE_ALPHA):
     """
     print("Building sparse confidence matrix ...")
     user_cat = df["user_id"].astype("category")
-    item_cat = df["drink_id"].astype("category")
+    item_cat = df["wine_id"].astype("category")
 
     user_idx = user_cat.cat.codes.to_numpy()
     item_idx = item_cat.cat.codes.to_numpy()

@@ -15,11 +15,13 @@ export function WinePairing({ recipeId, topN = 5 }: Props) {
   const [pairs, setPairs] = useState<PairedWine[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [unavailable, setUnavailable] = useState(false)
 
   // reset when switching recipes
   useEffect(() => {
     setPairs(null)
     setError(null)
+    setUnavailable(false)
   }, [recipeId])
 
   const handlePair = () => {
@@ -27,7 +29,12 @@ export function WinePairing({ recipeId, topN = 5 }: Props) {
     setError(null)
     pairWines(recipeId, topN)
       .then(setPairs)
-      .catch(() => setError('Could not load pairings. Try again.'))
+      .catch((err: { response?: { status?: number } }) => {
+        // 503 = pairing model not built in this environment; show a calm note
+        // rather than an error so the recipe page never looks broken.
+        if (err?.response?.status === 503) setUnavailable(true)
+        else setError('Could not load pairings. Try again.')
+      })
       .finally(() => setLoading(false))
   }
 
@@ -37,7 +44,7 @@ export function WinePairing({ recipeId, topN = 5 }: Props) {
         <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', margin: 0 }}>
           🍷 Wine pairing
         </h2>
-        {!pairs && (
+        {!pairs && !unavailable && (
           <button
             className="btn btn-primary"
             style={{ fontSize: 13 }}
@@ -48,6 +55,12 @@ export function WinePairing({ recipeId, topN = 5 }: Props) {
           </button>
         )}
       </div>
+
+      {unavailable && (
+        <p style={{ fontSize: 13, color: 'var(--gray-400)' }}>
+          Wine pairing isn’t set up in this environment.
+        </p>
+      )}
 
       {error && (
         <p style={{ fontSize: 13, color: 'var(--red-500, #dc2626)' }}>{error}</p>

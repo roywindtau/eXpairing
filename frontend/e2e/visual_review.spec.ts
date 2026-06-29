@@ -217,40 +217,27 @@ test('UI visual review — demo states', async ({ page }) => {
   await pause(300)
 
   // ══════════════════════════════════════════════════════════════════════
-  // 6. BROWSE
+  // 6. RECIPES SEARCH
   // ══════════════════════════════════════════════════════════════════════
-  await page.getByRole('link', { name: 'Browse' }).click()
-  await page.waitForURL('**/browse', { timeout: 6000 })
+  await page.getByRole('link', { name: 'Recipes' }).click()
+  await page.waitForURL('**/feed', { timeout: 6000 })
   await page.locator('.card').first().waitFor({ timeout: 15000 })
   await pause(500)
-  await shot(page, '36-browse-initial')
+  await shot(page, '36-recipes-initial')
 
-  await page.getByPlaceholder(/search/i).fill('pasta')
-  await shot(page, '37-browse-typing-pasta')
+  await page.getByPlaceholder(/search/i).fill('chicken')
+  await shot(page, '37-recipes-typing-chicken')
 
-  await page.keyboard.press('Enter')
   await pause(900)
-  await shot(page, '38-browse-search-results')
-
-  const tagPill = page.locator('button.tag-btn, button[class*="tag"], button[class*="pill"]').first()
-  if (await tagPill.count() > 0) {
-    await tagPill.click(); await pause(500)
-    await shot(page, '39-browse-tag-filter-active')
-  }
-
-  const clearBtn = page.getByRole('button', { name: /clear/i })
-  if (await clearBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-    await clearBtn.click(); await pause(400)
-    await shot(page, '40-browse-filter-cleared')
-  }
+  await shot(page, '38-recipes-search-results')
 
   await page.locator('.card a').first().click()
   await page.waitForURL(/\/recipe\/\d+/, { timeout: 8000 })
   await pause(400)
-  await shot(page, '41-browse-recipe-detail')
+  await shot(page, '41-recipes-recipe-detail')
 
   await page.getByRole('button', { name: /back/i }).click()
-  await page.waitForURL('**/browse', { timeout: 6000 })
+  await page.waitForURL('**/feed', { timeout: 6000 })
   await pause(300)
 
   // ══════════════════════════════════════════════════════════════════════

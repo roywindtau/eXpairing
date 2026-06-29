@@ -9,9 +9,9 @@ import {
 } from '../api/client'
 import type { ShoppingItem } from '../api/client'
 
-interface Props { userId: number }
+interface Props { userId: number; embedded?: boolean }
 
-export function ShoppingListPage({ userId }: Props) {
+export function ShoppingListPage({ userId, embedded = false }: Props) {
   const [items,   setItems]   = useState<ShoppingItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -42,10 +42,15 @@ export function ShoppingListPage({ userId }: Props) {
 
   const checkedCount = items.filter(i => i.is_checked).length
 
+  const Wrapper = embedded ? 'section' : 'div'
+  const wrapperProps = embedded
+    ? { style: { marginTop: 32, paddingTop: 24, borderTop: '1px solid var(--gray-100)' } }
+    : { className: 'page' }
+
   return (
-    <div className="page">
+    <Wrapper {...wrapperProps}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Shopping List</h1>
+        <h1 className="page-title" style={{ margin: 0, fontSize: embedded ? '1.1rem' : undefined }}>Shopping list</h1>
         {checkedCount > 0 && (
           <button className="btn btn-ghost" style={{ fontSize: 13 }} onClick={handleClearChecked}>
             Clear purchased ({checkedCount})
@@ -118,18 +123,8 @@ export function ShoppingListPage({ userId }: Props) {
               </div>
             ))}
           </div>
-
-          {checkedCount > 0 && (
-            <button
-              className="btn btn-ghost"
-              style={{ marginTop: 16, fontSize: 13, width: '100%' }}
-              onClick={handleClearChecked}
-            >
-              Clear {checkedCount} purchased item{checkedCount !== 1 ? 's' : ''}
-            </button>
-          )}
         </>
       )}
-    </div>
+    </Wrapper>
   )
 }

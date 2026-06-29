@@ -8,6 +8,7 @@ import type { PantryItem } from '../api/client'
 import { ExpiryBadge } from '../components/ExpiryBadge'
 import { VisionScanner } from '../components/VisionScanner'
 import { IngredientAutocomplete } from '../components/IngredientAutocomplete'
+import { ShoppingListPage } from './ShoppingListPage'
 
 interface Props { userId: number }
 
@@ -170,6 +171,8 @@ export function PantryPage({ userId }: Props) {
           ))}
         </div>
       )}
+
+      <ShoppingListPage userId={userId} embedded />
     </div>
   )
 }

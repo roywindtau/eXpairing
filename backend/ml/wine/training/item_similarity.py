@@ -11,7 +11,7 @@ Real expressed preferences only.
 Saved artifacts
 ---------------
     models/wine_sim_wine.npz       sparse top-K wine sim matrix
-    models/wine_sim_wine_ids.npy   wine drink_id per row/col
+    models/wine_sim_wine_ids.npy   wine wine_id per row/col
     models/wine_sim_meta.json      counts + thresholds + timestamp
 
 Run:
@@ -58,7 +58,7 @@ def _load_wine_ratings() -> pd.DataFrame:
         )
     finally:
         db.close()
-    return pd.DataFrame(rows, columns=["user_id", "drink_id", "rating"])
+    return pd.DataFrame(rows, columns=["user_id", "wine_id", "rating"])
 
 
 def _build_sim(df: pd.DataFrame, min_ratings: int) -> tuple[sp.csr_matrix, list[int]]:
@@ -66,16 +66,16 @@ def _build_sim(df: pd.DataFrame, min_ratings: int) -> tuple[sp.csr_matrix, list[
     if df.empty:
         return sp.csr_matrix((0, 0), dtype=np.float32), []
 
-    counts = df["drink_id"].value_counts()
+    counts = df["wine_id"].value_counts()
     valid  = set(counts[counts >= min_ratings].index)
-    df     = df[df["drink_id"].isin(valid)].copy()
+    df     = df[df["wine_id"].isin(valid)].copy()
     print(f"  Kept {len(valid):,} wines with >= {min_ratings} ratings  "
           f"({len(df):,} rating rows remaining)")
 
     if df.empty:
         return sp.csr_matrix((0, 0), dtype=np.float32), []
 
-    wine_ids = sorted(df["drink_id"].unique())
+    wine_ids = sorted(df["wine_id"].unique())
     user_ids  = sorted(df["user_id"].unique())
     d_map = {d: i for i, d in enumerate(wine_ids)}
     u_map = {u: i for i, u in enumerate(user_ids)}
@@ -84,7 +84,7 @@ def _build_sim(df: pd.DataFrame, min_ratings: int) -> tuple[sp.csr_matrix, list[
 
     user_mean = df.groupby("user_id")["rating"].transform("mean")
     centered  = (df["rating"] - user_mean).astype(np.float32).values
-    r_idx = df["drink_id"].map(d_map).values
+    r_idx = df["wine_id"].map(d_map).values
     u_idx = df["user_id"].map(u_map).values
 
     R_T = sp.csr_matrix(

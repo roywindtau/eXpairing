@@ -5,9 +5,7 @@ import { OnboardingPage }    from './pages/OnboardingPage'
 import { PantryPage }         from './pages/PantryPage'
 import { RecipeFeedPage }     from './pages/RecipeFeedPage'
 import { ProfilePage }        from './pages/ProfilePage'
-import { BrowsePage }         from './pages/BrowsePage'
 import { RecipeDetailPage }   from './pages/RecipeDetailPage'
-import { ShoppingListPage }   from './pages/ShoppingListPage'
 import { WineForYouPage }     from './pages/WineForYouPage'
 import { getUser } from './api/client'
 import './index.css'
@@ -38,11 +36,9 @@ export default function App() {
             <span>🍳</span> Fridge2Fork
           </NavLink>
           <div className="nav-links">
+            <NavLink to="/feed"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Recipes</NavLink>
             <NavLink to="/wine"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Wine</NavLink>
             <NavLink to="/pantry"   className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Pantry</NavLink>
-            <NavLink to="/feed"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Recipes</NavLink>
-            <NavLink to="/browse"   className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Browse</NavLink>
-            <NavLink to="/list"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>List</NavLink>
             <NavLink to="/profile"  className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Profile</NavLink>
           </div>
         </nav>
@@ -51,10 +47,8 @@ export default function App() {
           <Route path="/"        element={<Navigate to="/feed" replace />} />
           <Route path="/pantry"        element={<PantryPage      userId={userId} />} />
           <Route path="/feed"          element={<RecipeFeedPage  userId={userId} />} />
-          <Route path="/browse"        element={<BrowsePage      userId={userId} />} />
           <Route path="/wine"          element={<WineForYouPage  userId={userId} />} />
           <Route path="/profile"       element={<ProfilePage     userId={userId} />} />
-          <Route path="/list"          element={<ShoppingListPage userId={userId} />} />
           <Route path="/recipe/:id"    element={<RecipeDetailPage userId={userId} />} />
         </Routes>
       </div>

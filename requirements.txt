@@ -20,7 +20,7 @@ openai==1.51.0
 google-genai>=1.0.0
 
 # Data download
-kaggle>=1.8.0
+kaggle>=1.6.0
 
 # Utilities
 requests==2.32.3

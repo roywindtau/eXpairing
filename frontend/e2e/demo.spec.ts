@@ -2,7 +2,7 @@
  * Fridge2Fork — Feature Demo
  *
  * End-to-end walkthrough: Onboarding → Pantry → Demo Scan → Recipe Feed
- * → Score breakdown → Cook & Rate (x5) → Recipe Detail → Browse → Profile → Shopping List
+ * → Score breakdown → Cook & Rate (x5) → Recipe Detail → Search → Profile → Shopping List
  *
  * Run:
  *   cd frontend
@@ -242,42 +242,27 @@ test('Fridge2Fork full feature demo', async ({ page }) => {
   await pause(600)
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 7. BROWSE — search + tag filter + recipe detail
+  // 7. SEARCH — narrow the Recipes feed + open a recipe detail
   // ══════════════════════════════════════════════════════════════════════════
-  await page.getByRole('link', { name: 'Browse' }).click()
-  await page.waitForURL('**/browse', { timeout: 6000 })
+  await page.getByRole('link', { name: 'Recipes' }).click()
+  await page.waitForURL('**/feed', { timeout: 6000 })
   await pause(700)
 
   await page.locator('.card').first().waitFor({ timeout: 15000 })
   await pause(700)
 
-  // Text search
-  await page.getByPlaceholder(/search/i).fill('pasta')
-  await page.keyboard.press('Enter')
+  // Text search narrows the loaded pool by name or ingredient
+  await page.getByPlaceholder(/search/i).fill('chicken')
   await pause(1200)
 
-  // Click the first tag filter pill if any exist
-  const tagPill = page.locator('button.tag-btn, button[class*="tag"], button[class*="pill"]').first()
-  if (await tagPill.count() > 0) {
-    await tagPill.click()
-    await pause(700)
-  }
-
-  // Clear filter button
-  const clearBtn = page.getByRole('button', { name: /clear/i })
-  if (await clearBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-    await clearBtn.click()
-    await pause(600)
-  }
-
-  // Open a recipe detail from browse
+  // Open a recipe detail from the results
   await page.locator('.card a').first().click()
   await page.waitForURL(/\/recipe\/\d+/, { timeout: 8000 })
   await pause(700)
   await page.mouse.wheel(0, 350)
   await pause(600)
   await page.getByRole('button', { name: /back/i }).click()
-  await page.waitForURL('**/browse', { timeout: 6000 })
+  await page.waitForURL('**/feed', { timeout: 6000 })
   await pause(600)
 
   // ══════════════════════════════════════════════════════════════════════════

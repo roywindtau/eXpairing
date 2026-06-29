@@ -33,14 +33,23 @@ def popularity_top_n(db: Session, top_n: int, styles: set[str] | None = None) ->
 
 
 def liked_wines(db: Session, user_id: int) -> list[tuple[int, float]]:
-    """Real (non-synthetic) rating events for a user."""
+    """Real (non-synthetic) ratings for a user, one per wine (latest wins).
+
+    A user may rate the same wine more than once; we keep only their most
+    recent rating so re-rating can't inflate the warm threshold or double-count
+    a wine in the taste profile.
+    """
     rows = (db.query(WineEvent.wine_id, WineEvent.rating)
               .filter(WineEvent.user_id == user_id,
                       WineEvent.event_type == "rate",
                       WineEvent.synthetic == False,           # noqa: E712
                       WineEvent.rating.isnot(None))
+              .order_by(WineEvent.created_at.asc(), WineEvent.id.asc())
               .all())
-    return [(int(w), float(r)) for w, r in rows]
+    latest: dict[int, float] = {}
+    for w, r in rows:
+        latest[int(w)] = float(r)          # later rows overwrite -> latest kept
+    return list(latest.items())
 
 
 def user_styles(db: Session, wine_ids: list[int]) -> set[str]:
