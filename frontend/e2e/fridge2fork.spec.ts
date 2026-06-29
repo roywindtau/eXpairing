@@ -79,19 +79,15 @@ test.describe('Navigation', () => {
     await completeOnboarding(page)
   })
 
-  test('nav shows all four links', async ({ page }) => {
+  test('nav shows core links', async ({ page }) => {
     await expect(page.getByRole('link', { name: 'Pantry' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Recipes' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Browse' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Profile' })).toBeVisible()
   })
 
   test('nav links navigate correctly', async ({ page }) => {
     await page.getByRole('link', { name: 'Recipes' }).click()
     await expect(page).toHaveURL(/\/feed/)
-
-    await page.getByRole('link', { name: 'Browse' }).click()
-    await expect(page).toHaveURL(/\/browse/)
 
     await page.getByRole('link', { name: 'Profile' }).click()
     await expect(page).toHaveURL(/\/profile/)
@@ -377,46 +373,26 @@ test.describe('Recipe Detail', () => {
   })
 })
 
-// ── 6. Browse Page ────────────────────────────────────────────────────────────
+// ── 6. Recipes search ───────────────────────────────────────────────────────
 
-test.describe('Browse', () => {
+test.describe('Recipes search', () => {
   test.beforeEach(async ({ page }) => {
     await clearUser(page)
     await completeOnboarding(page)
-    await page.goto('/browse')
+    await page.goto('/feed')
   })
 
-  test('loads top-rated recipes on open', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Browse recipes' })).toBeVisible()
-    await expect(page.locator('.card').first()).toBeVisible({ timeout: 10_000 })
-  })
-
-  test('text search filters results', async ({ page }) => {
+  test('search narrows the recipe list', async ({ page }) => {
     await expect(page.locator('.card').first()).toBeVisible({ timeout: 10_000 })
     const countBefore = await page.locator('.card').count()
-    await page.getByPlaceholder(/Search by name/).fill('pasta')
+    await page.getByPlaceholder(/Search by name/).fill('chicken')
     await expect(page.locator('.card').first()).toBeVisible({ timeout: 5_000 })
-    // Results should load (search matches by name OR ingredient, so title check is unreliable)
     const countAfter = await page.locator('.card').count()
     expect(countAfter).toBeGreaterThan(0)
-    // Result count should differ from initial load (filtered vs all)
     expect(countAfter).toBeLessThanOrEqual(countBefore)
   })
 
-  test('tag filter pills work', async ({ page }) => {
-    await expect(page.locator('.card').first()).toBeVisible({ timeout: 10_000 })
-    await page.getByText('vegetarian', { exact: true }).first().click()
-    await expect(page.locator('.card').first()).toBeVisible({ timeout: 5_000 })
-  })
-
-  test('clear filter button appears and resets', async ({ page }) => {
-    await page.getByText('vegetarian', { exact: true }).first().click()
-    await expect(page.getByText('✕ clear filter')).toBeVisible()
-    await page.getByText('✕ clear filter').click()
-    await expect(page.getByText('✕ clear filter')).not.toBeVisible()
-  })
-
-  test('browse card links to recipe detail', async ({ page }) => {
+  test('recipe card links to recipe detail', async ({ page }) => {
     await expect(page.locator('.card').first()).toBeVisible({ timeout: 10_000 })
     const firstLink = page.locator('.card a').first()
     const name = await firstLink.textContent()

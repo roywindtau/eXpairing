@@ -41,6 +41,8 @@ function CfStrategyBanner({ strategy }: { strategy: string | null }) {
   )
 }
 
+const PAGE_SIZE = 20
+
 export function RecipeFeedPage({ userId }: Props) {
   const [recipes,  setRecipes]  = useState<RecipeScore[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -49,12 +51,16 @@ export function RecipeFeedPage({ userId }: Props) {
   const [skipped,  setSkipped]  = useState<Set<number>>(new Set())
   const [cooked,   setCooked]   = useState<Set<number>>(new Set())
   const [sortKey,  setSortKey]  = useState<SortKey>('final_score')
+  const [query,    setQuery]    = useState('')
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await getRankedRecipes(userId, 20)
+      // top_n=0 returns the full scored candidate pool so search & "Show more"
+      // have a real pool to work over (best-fit recipes are first).
+      const data = await getRankedRecipes(userId, 0)
       setRecipes(data)
       if (data.length > 0) setStrategy(data[0].cf_strategy)
     } catch {
@@ -66,6 +72,9 @@ export function RecipeFeedPage({ userId }: Props) {
 
   useEffect(() => { load() }, [load])
 
+  // Reset how many cards are shown whenever the search query changes.
+  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [query])
+
   const handleSkip   = (id: number) => setSkipped(prev => new Set([...prev, id]))
   const handleCooked = (id: number) => setCooked(prev => new Set([...prev, id]))
 
@@ -73,6 +82,19 @@ export function RecipeFeedPage({ userId }: Props) {
   const sorted  = sortKey === 'final_score'
     ? visible
     : [...visible].sort((a, b) => b[sortKey] - a[sortKey])
+
+  // Search filters by recipe name OR any ingredient (matched + missing = full list).
+  const q = query.trim().toLowerCase()
+  const filtered = q === ''
+    ? sorted
+    : sorted.filter(r =>
+        r.recipe_name.toLowerCase().includes(q) ||
+        [...r.matched_ingredients, ...r.missing_ingredients]
+          .some(ing => ing.toLowerCase().includes(q))
+      )
+
+  const shown   = filtered.slice(0, visibleCount)
+  const hasMore = filtered.length > visibleCount
 
   if (loading) return (
     <div className="page">
@@ -128,6 +150,21 @@ export function RecipeFeedPage({ userId }: Props) {
 
       <CfStrategyBanner strategy={strategy} />
 
+      {/* Search bar — narrows the loaded pool by recipe name or ingredient */}
+      <div style={{ position: 'relative', marginBottom: 14 }}>
+        <span style={{
+          position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+          color: 'var(--gray-400)', pointerEvents: 'none',
+        }}>🔍</span>
+        <input
+          className="form-input"
+          placeholder="Search by name or ingredient…"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          style={{ width: '100%', paddingLeft: 36 }}
+        />
+      </div>
+
       {visible.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">🍽️</div>
@@ -137,13 +174,21 @@ export function RecipeFeedPage({ userId }: Props) {
             Refresh
           </button>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty">
+          <div className="empty-icon">🔍</div>
+          <h3>No recipes found</h3>
+          <p>Try a different search term.</p>
+        </div>
       ) : (
         <>
           <p style={{ fontSize: 13, color: 'var(--gray-400)', marginBottom: 14 }}>
-            {visible.length} recipes ranked by collaborative filtering (CF) · expiry urgency · pantry match
+            {q
+              ? `Showing ${shown.length} of ${filtered.length} recipes matching "${query.trim()}"`
+              : `Showing ${shown.length} of ${filtered.length} recipes · ranked by CF · expiry urgency · pantry match`}
           </p>
           <div className="recipe-grid">
-            {sorted.map(r => (
+            {shown.map(r => (
               <RecipeCard
                 key={r.recipe_id}
                 recipe={r}
@@ -153,6 +198,16 @@ export function RecipeFeedPage({ userId }: Props) {
               />
             ))}
           </div>
+          {hasMore && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+              >
+                Show more
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

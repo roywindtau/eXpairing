@@ -17,47 +17,6 @@ interface Props {
   onSkipped?: () => void
 }
 
-// ── circular ring (shared) ─────────────────────────────────────────────────
-function Ring({
-  value, max = 100, color, label, format,
-}: {
-  value: number
-  max?: number
-  color: string
-  label: string
-  format: (v: number) => string
-}) {
-  const r    = 18
-  const circ = 2 * Math.PI * r
-  const dash = (value / max) * circ
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      <svg width={44} height={44} viewBox="0 0 44 44">
-        <circle cx={22} cy={22} r={r} fill="none" stroke="var(--gray-100)" strokeWidth={4} />
-        <circle cx={22} cy={22} r={r} fill="none" stroke={color} strokeWidth={4}
-          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-          transform="rotate(-90 22 22)" style={{ transition: 'stroke-dasharray .4s' }} />
-        <text x={22} y={27} textAnchor="middle" fontSize={11} fontWeight={600} fill={color}>
-          {format(value)}
-        </text>
-      </svg>
-      <span style={{ fontSize: 10, color: 'var(--gray-500)' }}>{label}</span>
-    </div>
-  )
-}
-
-function MatchRing({ ratio }: { ratio: number }) {
-  const pct   = Math.round(ratio * 100)
-  const color = pct >= 75 ? 'var(--green-500)' : pct >= 40 ? 'var(--amber-400)' : 'var(--gray-300)'
-  return <Ring value={pct} max={100} color={color} label="match" format={v => `${v}%`} />
-}
-
-function ScoreRing({ score }: { score: number }) {
-  const val   = Math.round(score * 100)
-  const color = val >= 60 ? 'var(--blue-500)' : val >= 35 ? 'var(--blue-500)' : 'var(--gray-300)'
-  return <Ring value={val} max={100} color={color} label="score" format={v => String(v)} />
-}
-
 // ── star rating input ──────────────────────────────────────────────────────
 // Renders 5 clickable stars. Hover previews, click confirms.
 // This generates event_type=rate which feeds SVD training.
@@ -130,8 +89,9 @@ function StarRating({
 
 // ── main card ──────────────────────────────────────────────────────────────
 export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
-  const [expanded,    setExpanded]    = useState(false)
-  const [phase,       setPhase]       = useState<'idle' | 'cooked' | 'rated' | 'skipped'>('idle')
+  const [expanded,        setExpanded]        = useState(false)
+  const [showIngredients, setShowIngredients] = useState(false)
+  const [phase,           setPhase]           = useState<'idle' | 'cooked' | 'rated' | 'skipped'>('idle')
   const [submitting,  setSubmitting]  = useState(false)
   const [listStatus,  setListStatus]  = useState<'idle' | 'adding' | 'added' | 'duplicate'>('idle')
 
@@ -220,10 +180,6 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
 
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <ScoreRing score={recipe.final_score} />
-          <MatchRing ratio={recipe.match_ratio} />
-        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }}>
             <Link
@@ -290,16 +246,33 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
         </p>
       )}
 
-      {/* Expandable score breakdown */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        style={{
-          fontSize: 12, color: 'var(--blue-600)', background: 'none', border: 'none',
-          textAlign: 'left', padding: 0, marginBottom: expanded ? 0 : 4,
-        }}
-      >
-        {expanded ? '▲ Hide breakdown' : '▼ Why this recipe?'}
-      </button>
+      {/* Expanders: ingredients + personal fit */}
+      <div style={{ display: 'flex', gap: 16 }}>
+        <button
+          onClick={() => setShowIngredients(s => !s)}
+          style={{
+            fontSize: 12, color: 'var(--blue-600)', background: 'none', border: 'none',
+            textAlign: 'left', padding: 0,
+          }}
+        >
+          {showIngredients ? '▲ Hide ingredients' : '▼ Ingredients'}
+        </button>
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{
+            fontSize: 12, color: 'var(--blue-600)', background: 'none', border: 'none',
+            textAlign: 'left', padding: 0,
+          }}
+        >
+          {expanded ? '▲ Hide personal fit' : '▼ Personal fit'}
+        </button>
+      </div>
+
+      {showIngredients && (
+        <p style={{ fontSize: 12, color: 'var(--gray-600)', lineHeight: 1.6, marginTop: 8 }}>
+          {[...recipe.matched_ingredients, ...recipe.missing_ingredients].join(', ')}
+        </p>
+      )}
       {expanded && <ScoreExplainer recipe={recipe} />}
 
       {/* Rating prompt — shown after Cook is clicked */}
