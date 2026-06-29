@@ -45,11 +45,11 @@ def compute() -> dict[int, tuple[float, int]]:
     total = 0
     for chunk in pd.read_csv(
         CLEAN_RATINGS_PATH,
-        usecols=["drink_id", "rating"],
-        dtype={"drink_id": "int64", "rating": "float64"},
+        usecols=["wine_id", "rating"],
+        dtype={"wine_id": "int64", "rating": "float64"},
         chunksize=CHUNK_SIZE,
     ):
-        grp = chunk.groupby("drink_id")["rating"].agg(["sum", "count"])
+        grp = chunk.groupby("wine_id")["rating"].agg(["sum", "count"])
         for wid, row in grp.iterrows():
             sums[wid] = sums.get(wid, 0.0) + float(row["sum"])
             counts[wid] = counts.get(wid, 0) + int(row["count"])

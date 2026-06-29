@@ -53,42 +53,6 @@ export function WineForYouPage({ userId }: Props) {
 
   const visible = wines.filter(w => !dismissed.has(w.wine_id))
 
-  // Group the feed into one section per style, preserving rank order within
-  // each style and ordering styles by their best-ranked wine.
-  const groupedByStyle: [string, WineOut[]][] = (() => {
-    const groups = new Map<string, WineOut[]>()
-    for (const w of visible) {
-      const key = w.style ?? 'Other'
-      if (!groups.has(key)) groups.set(key, [])
-      groups.get(key)!.push(w)
-    }
-    return [...groups.entries()]   // insertion order = first appearance = best rank
-  })()
-
-  // Within a style row, sub-group wines by their PRIMARY pairing — the pairing
-  // (from harmonize_csv) that is most common across that row, so cards cluster
-  // into meaningful pairing groups instead of singletons.
-  const groupByPairing = (row: WineOut[]): [string, WineOut[]][] => {
-    const foods = (w: WineOut) =>
-      (w.harmonize_csv ?? '').split(',').map(s => s.trim()).filter(Boolean)
-    // global frequency of each food across the row
-    const freq = new Map<string, number>()
-    row.forEach(w => foods(w).forEach(f => freq.set(f, (freq.get(f) ?? 0) + 1)))
-    const primary = (w: WineOut): string => {
-      const fs = foods(w)
-      if (!fs.length) return 'Other'
-      return fs.reduce((a, b) => (freq.get(b)! > freq.get(a)! ? b : a))
-    }
-    const groups = new Map<string, WineOut[]>()
-    for (const w of row) {
-      const key = primary(w)
-      if (!groups.has(key)) groups.set(key, [])
-      groups.get(key)!.push(w)
-    }
-    // order pairing groups by size (biggest cluster first)
-    return [...groups.entries()].sort((a, b) => b[1].length - a[1].length)
-  }
-
   const SuggestButton = ({ label }: { label: string }) => (
     <button
       className="btn btn-primary"
@@ -196,41 +160,24 @@ export function WineForYouPage({ userId }: Props) {
         ) : (
           <>
             <StylePicker />
-            {groupedByStyle.map(([style, group]) => (
-              <section key={style} style={{ marginBottom: 24 }}>
-                <h2 style={{
-                  fontSize: 14, fontWeight: 600, color: 'var(--gray-600)',
-                  margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 8,
-                }}>
-                  {style}
-                  <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--gray-400)' }}>
-                    {group.length}
-                  </span>
-                </h2>
-                {groupByPairing(group).map(([pairing, wines]) => (
-                  <div key={pairing} style={{ marginBottom: 14 }}>
-                    <p style={{
-                      fontSize: 12, color: 'var(--gray-400)', margin: '0 0 6px',
-                      fontWeight: 500,
-                    }}>
-                      Pairs with {pairing}
-                    </p>
-                    <div className="wine-grid">
-                      {wines.map(w => (
-                        <WineCard
-                          key={w.wine_id}
-                          wine={w}
-                          userId={userId}
-                          isRated={rated.has(w.wine_id)}
-                          onRated={()   => handleRated(w.wine_id)}
-                          onDismiss={() => handleDismiss(w.wine_id)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </section>
-            ))}
+            <p style={{
+              fontSize: 12, color: 'var(--gray-400)', margin: '0 0 12px',
+              fontWeight: 500,
+            }}>
+              Picked for you
+            </p>
+            <div className="wine-grid">
+              {visible.map(w => (
+                <WineCard
+                  key={w.wine_id}
+                  wine={w}
+                  userId={userId}
+                  isRated={rated.has(w.wine_id)}
+                  onRated={()   => handleRated(w.wine_id)}
+                  onDismiss={() => handleDismiss(w.wine_id)}
+                />
+              ))}
+            </div>
           </>
         )
       )}

@@ -127,10 +127,10 @@ def clean_ratings() -> pd.DataFrame:
         chunk = chunk[(chunk["Rating"] >= 1) & (chunk["Rating"] <= 5)]
 
         # Keep only columns needed for CF training, with canonical names
-        # (user_id, drink_id, rating)
+        # (user_id, wine_id, rating)
         chunk = chunk[["UserID", "WineID", "Rating"]].rename(columns={
             "UserID": "user_id",
-            "WineID": "drink_id",
+            "WineID": "wine_id",
             "Rating": "rating",
         })
 
@@ -170,10 +170,10 @@ def validate(wines: pd.DataFrame, ratings: pd.DataFrame) -> None:
     assert (wines["harmonize_csv"] != "").all(), "Empty harmonize_csv — expected all wines to have pairings"
     assert ratings["rating"].between(1, 5).all(), "Ratings outside [1,5] slipped through"
     assert ratings["user_id"].notna().all(), "Null user_ids in ratings"
-    assert ratings["drink_id"].notna().all(), "Null wine_ids in ratings"
+    assert ratings["wine_id"].notna().all(), "Null wine_ids in ratings"
 
     # Every rated wine must exist in the catalog
-    orphan_wines = set(ratings["drink_id"].unique()) - set(wines["id"].unique())
+    orphan_wines = set(ratings["wine_id"].unique()) - set(wines["id"].unique())
     assert not orphan_wines, f"{len(orphan_wines)} rated wines not in catalog"
 
     print("Validation passed.")
