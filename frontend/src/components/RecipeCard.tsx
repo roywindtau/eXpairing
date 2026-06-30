@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { RecipeScore } from '../api/client'
 import { ScoreExplainer } from './ScoreExplainer'
+import { WinePairing } from './WinePairing'
 import { logEvent, addToShoppingList } from '../api/client'
 
 interface Props {
@@ -283,6 +284,9 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
           borderBottom: '1px solid var(--gray-100)',
         }}>
           <StarRating onRate={handleRate} submitting={submitting} />
+          <div style={{ marginTop: 12 }}>
+            <WinePairing recipeId={recipe.recipe_id} />
+          </div>
         </div>
       )}
 
