@@ -68,7 +68,7 @@ export function WinePairing({ recipeId, topN = 5 }: Props) {
 
       {pairs && pairs.length === 0 && !loading && (
         <p style={{ fontSize: 14, color: 'var(--gray-400)' }}>
-          No confident pairing found for this recipe.
+          This dish is happy on its own — no standout wine match this time. 🍷
         </p>
       )}
 

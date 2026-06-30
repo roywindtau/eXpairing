@@ -144,7 +144,7 @@ tuning on this data.
 - **alpha = 5**, **factors = 64**, **iterations = 15**, **reg = 0.05**
 - **Filtering:** ≥5 ratings per user and per item
 - **NDCG@10 = 0.0291** (4× popularity), on the frozen leave-5-out split
-- **Artifacts:** `models/drink_wine_als_model.npz` (factors + id maps) + `_meta.json`
+- **Artifacts:** `models/wine_als_model.npz` (factors + id maps) + `wine_als_meta.json`
 
 ### Code (in `backend/ml/wine/training/`)
 - `wine_data.py` — shared data layer: load, sparsity filter, confidence matrix; holds the

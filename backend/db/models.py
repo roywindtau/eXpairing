@@ -34,6 +34,9 @@ class User(Base):
     has_cb      = Column(Boolean, default=False, nullable=False)
     # dietary preferences stored as comma-separated tags e.g. "vegetarian,gluten-free"
     diet_tags   = Column(String, nullable=True)
+    # wine cold-start: JSON of taste details inferred from the user's fruit picks
+    # e.g. {"fruits": [...], "grapes": [...], "body": "...", "acidity": "...", "styles": [...]}
+    wine_prefs  = Column(Text, nullable=True)
     created_at  = Column(DateTime, server_default=func.now())
 
     pantry_items   = relationship("PantryItem", back_populates="user",

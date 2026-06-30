@@ -56,6 +56,8 @@ def _load() -> dict | None:
         "ids": ids,
         "row_of": {int(w): i for i, w in enumerate(ids)},
         "blocks": blocks["blocks"],
+        "grape_vocab": blocks.get("grape_vocab", {}),
+        "dim": int(blocks.get("dim", mat.shape[1])),
     }
     return _state
 
@@ -72,31 +74,65 @@ def _apply_weights(mat: sp.csr_matrix, blocks: dict, weights: dict) -> sp.csr_ma
     return m.tocsr()
 
 
+def _apply_weights_vec(vec: np.ndarray, blocks: dict, weights: dict) -> np.ndarray:
+    """Block-scale a single dense vector (the seed) the same way _apply_weights
+    scales the matrix, so the seed lives in the same weighted space as the rows."""
+    out = vec.astype(np.float64, copy=True)
+    g, r = blocks["grape"], blocks["region"]
+    out[g["start"]:g["end"]] *= weights["grape"]
+    out[r["start"]:r["end"]] *= weights["region"]
+    out[blocks["acidity"]["col"]] *= weights["acidity"]
+    out[blocks["body"]["col"]]    *= weights["body"]
+    out[blocks["abv"]["col"]]     *= weights["abv"]
+    return out
+
+
 def cb_available() -> bool:
     return _load() is not None
 
 
-def cb_scores(liked, candidate_ids, weights: dict | None = None) -> dict[int, float]:
+def get_blocks() -> dict | None:
+    """Expose the matrix layout + grape vocab so callers can build a seed vector
+    that lines up with the trained matrix columns. None if CB isn't built."""
+    st = _load()
+    if st is None:
+        return None
+    return {"dim": st["dim"], "blocks": st["blocks"], "grape_vocab": st["grape_vocab"]}
+
+
+def cb_scores(liked, candidate_ids, weights: dict | None = None,
+              seed_vec: np.ndarray | None = None,
+              seed_weight: float = 0.0) -> dict[int, float]:
     """
     Cosine similarity between the user's taste profile and each candidate.
 
     liked         : list of (wine_id, rating)
     candidate_ids : iterable of wine_id to score
+    seed_vec      : optional cold-start seed (UNWEIGHTED, in the matrix layout)
+                    inferred from the user's fruit picks. Folded into the profile
+                    as one weighted-mean term so it decays as ratings accumulate:
+
+        profile = (seed_weight*seed + sum_i (r_i-3)*row_i) / (seed_weight + sum_i |r_i-3|)
+
+    seed_weight   : strength of the seed (~2.0 == worth two strong ratings).
+
     Returns {wine_id: cosine in [-1, 1]} (0.0 for wines not in the matrix or
-    when there is no usable taste profile).
+    when there is no usable taste profile). With no seed it is byte-for-byte the
+    previous rating-only behavior.
     """
     st = _load()
-    if st is None or not liked:
+    if st is None:
         return {int(c): 0.0 for c in candidate_ids}
 
     w = weights or DEFAULT_WEIGHTS
     wmat = _apply_weights(st["mat"], st["blocks"], w)
     row_of = st["row_of"]
 
-    # taste profile: rating-weighted mean of liked wine rows (weight = rating-3)
+    # taste profile: rating-weighted mean of liked wine rows (weight = rating-3),
+    # plus an optional fruit seed term in the same weighted space.
     prof = None
     wsum = 0.0
-    for wine_id, rating in liked:
+    for wine_id, rating in (liked or []):
         i = row_of.get(int(wine_id))
         if i is None:
             continue
@@ -106,6 +142,12 @@ def cb_scores(liked, candidate_ids, weights: dict | None = None) -> dict[int, fl
         vec = wmat.getrow(i).toarray().ravel() * coeff
         prof = vec if prof is None else prof + vec
         wsum += abs(coeff)
+
+    if seed_vec is not None and seed_weight > 0.0:
+        sv = _apply_weights_vec(np.asarray(seed_vec), st["blocks"], w) * seed_weight
+        prof = sv if prof is None else prof + sv
+        wsum += seed_weight
+
     if prof is None or wsum == 0.0:
         return {int(c): 0.0 for c in candidate_ids}
     prof /= wsum

@@ -4,8 +4,8 @@
 // ranking (style-filtered, CF+CB blend for warm users; popularity cold start).
 // No auto-fetch — the click IS the recommendation.
 
-import { useCallback, useState } from 'react'
-import { getRankedWines } from '../api/wine'
+import { useCallback, useEffect, useState } from 'react'
+import { getRankedWines, getWinePreferences, saveWinePreferences, FRUIT_OPTIONS } from '../api/wine'
 import type { WineOut } from '../api/wine'
 import { WineCard, STYLE_COLORS } from '../components/WineCard'
 
@@ -13,6 +13,10 @@ interface Props { userId: number }
 
 const SUGGEST_COUNT = 10
 const STYLE_OPTIONS = ['Red', 'White', 'Rosé', 'Sparkling', 'Dessert'] as const
+const FRUIT_EMOJI: Record<string, string> = {
+  orange: '🍊', lemon: '🍋', grapes: '🍇', apple: '🍎', pear: '🍐', peach: '🍑',
+  apricot: '🟠', cherry: '🍒', strawberry: '🍓', raspberry: '🔴', blackberry: '⚫', plum: '🟣',
+}
 
 export function WineForYouPage({ userId }: Props) {
   const [wines,     setWines]     = useState<WineOut[]>([])
@@ -22,11 +26,33 @@ export function WineForYouPage({ userId }: Props) {
   const [dismissed, setDismissed] = useState<Set<number>>(new Set())
   const [rated,     setRated]     = useState<Set<number>>(new Set())
   const [styles,    setStyles]    = useState<Set<string>>(new Set())
+  const [fruits,    setFruits]    = useState<Set<string>>(new Set())
+  // Fruit picking is a ONE-TIME cold-start onboarding step. Once the user has
+  // saved fruit prefs, we never show the picker again (not on results, not on
+  // later visits) — taste then comes from the wines they rate.
+  const [onboarded, setOnboarded] = useState(false)
+
+  // Prefill the fruit picker from any previously-saved preferences.
+  useEffect(() => {
+    getWinePreferences(userId)
+      .then(p => {
+        setFruits(new Set(p.fruits))
+        if (p.fruits.length > 0) setOnboarded(true)   // already onboarded
+      })
+      .catch(() => { /* no prefs yet / backend down — leave empty */ })
+  }, [userId])
 
   const toggleStyle = (s: string) =>
     setStyles(prev => {
       const next = new Set(prev)
       next.has(s) ? next.delete(s) : next.add(s)
+      return next
+    })
+
+  const toggleFruit = (f: string) =>
+    setFruits(prev => {
+      const next = new Set(prev)
+      next.has(f) ? next.delete(f) : next.add(f)
       return next
     })
 
@@ -37,6 +63,13 @@ export function WineForYouPage({ userId }: Props) {
     setDismissed(new Set())
     setRated(new Set())
     try {
+      // Persist fruit picks first so the backend can seed the cold-start ranking.
+      // Only when something is selected: avoids wiping stored prefs if the
+      // mount-time load failed, and avoids needless writes on every click.
+      if (fruits.size > 0) {
+        await saveWinePreferences(userId, [...fruits])
+        setOnboarded(true)   // picker won't reappear after this first pick
+      }
       const data = await getRankedWines(SUGGEST_COUNT, userId, [...styles])
       setWines(data)
     } catch {
@@ -44,7 +77,7 @@ export function WineForYouPage({ userId }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [userId, styles])
+  }, [userId, styles, fruits])
 
   const handleRated   = (id: number) =>
     setRated(prev => new Set([...prev, id]))
@@ -62,6 +95,39 @@ export function WineForYouPage({ userId }: Props) {
     >
       🍷 {loading ? 'Finding wines…' : label}
     </button>
+  )
+
+  // Fruit chips — cold-start onboarding. Picks are inferred into a wine taste
+  // profile on the backend and seed recommendations until the user rates wines.
+  const FruitPicker = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 18 }}>
+      <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>
+        Fruits you enjoy {fruits.size === 0 && '(helps us start)'}
+      </span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 460 }}>
+        {FRUIT_OPTIONS.map(f => {
+          const on = fruits.has(f)
+          return (
+            <button
+              key={f}
+              type="button"
+              onClick={() => toggleFruit(f)}
+              className="badge"
+              style={{
+                cursor: 'pointer', fontSize: 12, padding: '4px 10px',
+                textTransform: 'capitalize',
+                background: on ? 'var(--purple-600, #7c3aed)' : 'var(--gray-50, #f7f7f8)',
+                color: on ? '#fff' : 'var(--gray-700)',
+                border: `1px solid ${on ? 'var(--purple-600, #7c3aed)' : 'var(--gray-200, #e5e7eb)'}`,
+                fontWeight: on ? 600 : 400,
+              }}
+            >
+              {FRUIT_EMOJI[f] ?? '🍇'} {on ? '✓ ' : ''}{f}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 
   // Style chips — toggle which styles to generate. Empty = "styles you drink".
@@ -117,8 +183,11 @@ export function WineForYouPage({ userId }: Props) {
           <div className="empty-icon">🥂</div>
           <h3>Not sure what to drink?</h3>
           <p style={{ marginBottom: 20 }}>
-            Get {SUGGEST_COUNT} wine picks tailored to what you've rated.
+            {onboarded
+              ? "Pick the styles you're after, or just hit suggest."
+              : "New here? Tell us which fruits you enjoy and we'll start your picks. They sharpen as you rate wines."}
           </p>
+          {!onboarded && <FruitPicker />}
           <StylePicker />
           <SuggestButton label="Suggest me a wine" />
         </div>
