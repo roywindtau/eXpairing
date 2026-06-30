@@ -3,33 +3,42 @@ wine.py
 -------
 HTTP API for wine recommendations + rating.
 
-Current scope is deliberately minimal: "recommend me a wine" returns the
-top-N most popular wines (Bayesian-smoothed). Per-user CF/CB ranking and
-recipe pairing are future work (see the wine training scripts under
-backend/ml/wine/training/), not wired here yet.
+"Recommend me a wine" is personalized: a blend of collaborative filtering
+(ALS, services/wine/scoring.py) and content-based scoring, with a fruit-seeded
+cold start for brand-new users and a popularity floor throughout. "Pair me a
+wine" ranks wines against a recipe via the content-based pairing model
+(serve_pairing.py). All three model groups (CF, CB, pairing) live under
+backend/ml/wine/ and the app degrades gracefully to popularity when an
+artifact is missing.
 
 Routes
 ------
-    GET  /wine/ranked    top-N popular wines ("Suggest me a wine")
-    POST /wine/pair      top-N wines that pair with a given recipe
-    POST /wine-events    rate a wine
+    GET  /wine/ranked        top-N wines ("Suggest me a wine"), personalized
+    POST /wine/pair          top-N wines that pair with a given recipe
+    POST /wine-events        rate a wine
+    POST /wine/preferences   set fruit-inferred taste prefs (cold-start onboarding)
+    GET  /wine/preferences   read a user's stored taste prefs
 """
 
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_db
-from backend.db.models import Recipe, Wine, WineEvent
+from backend.db.models import Recipe, User, Wine, WineEvent
 from backend.routers.wine_schemas import (
     PairedWineOut,
     PairRequest,
     WineEventIn,
     WineOut,
+    WinePreferencesIn,
+    WinePreferencesOut,
 )
+from backend.services.wine.preference_profile import infer_details
 from backend.services.wine.serializers import to_out as _to_out
 
 router = APIRouter(tags=["wine"])
@@ -159,3 +168,50 @@ def log_wine_event(payload: WineEventIn, db: Session = Depends(get_db)):
     db.add(event)
     db.commit()
     return {"status": "ok", "event_id": event.id}
+
+
+# ── wine preferences (cold-start onboarding) ─────────────────────────────
+
+def _prefs_out(details: dict) -> WinePreferencesOut:
+    return WinePreferencesOut(
+        fruits=details.get("fruits", []),
+        grapes=details.get("grapes", []),
+        body=details.get("body"),
+        acidity=details.get("acidity"),
+        styles=details.get("styles", []),
+    )
+
+
+@router.post("/wine/preferences", response_model=WinePreferencesOut)
+def set_wine_preferences(payload: WinePreferencesIn, db: Session = Depends(get_db)):
+    """
+    Cold-start onboarding: infer wine taste details from the user's fruit picks
+    and persist them on the user. These seed the CB ranking for new users and
+    decay automatically as the user rates wines (see services/wine/scoring.py).
+    """
+    user = db.get(User, payload.user_id)
+    if user is None:
+        raise HTTPException(404, detail=f"User {payload.user_id} not found")
+
+    details = infer_details(payload.fruits)
+    user.wine_prefs = json.dumps(details) if details else None
+    db.commit()
+    return _prefs_out(details)
+
+
+@router.get("/wine/preferences", response_model=WinePreferencesOut)
+def get_wine_preferences(
+    user_id: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Return the user's stored wine taste details (empty if none set)."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, detail=f"User {user_id} not found")
+    if not user.wine_prefs:
+        return _prefs_out({})
+    try:
+        details = json.loads(user.wine_prefs)
+    except (ValueError, TypeError):
+        details = {}
+    return _prefs_out(details)

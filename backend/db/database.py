@@ -13,7 +13,7 @@ Usage in routers:
 """
 
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from backend.db.models import Base
 
@@ -30,6 +30,23 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def init_db() -> None:
     """Create all tables. Safe to call multiple times (no-op if exist)."""
     Base.metadata.create_all(bind=engine)
+    _ensure_columns()
+
+
+def _ensure_columns() -> None:
+    """Additive migration for DBs created before a new nullable column existed.
+
+    create_all() never ALTERs existing tables, so a pre-existing dev DB would be
+    missing recently-added columns. Add them here (existing rows get NULL). Only
+    handles simple additive columns — anything more needs a real migration tool.
+    """
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    user_cols = {c["name"] for c in inspector.get_columns("users")}
+    if "wine_prefs" not in user_cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN wine_prefs TEXT"))
 
 
 def get_db():

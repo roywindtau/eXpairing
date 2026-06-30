@@ -13,7 +13,7 @@ env/
 *.db
 *.sqlite3
 
-# ML artifacts (too large for git; recreate with train_pipeline.sh)
+# ML artifacts (too large for git; rebuild — see README "Full ML training")
 models/*.pkl
 models/*.npz
 models/*.npy

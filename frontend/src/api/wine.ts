@@ -26,6 +26,22 @@ export interface PairedWine extends WineOut {
   pairing_score: number
 }
 
+// wine taste details inferred from the user's fruit picks (cold-start onboarding)
+export interface WinePreferences {
+  fruits:  string[]
+  grapes:  string[]
+  body:    string | null
+  acidity: string | null
+  styles:  string[]
+}
+
+// everyday fruits offered in onboarding — must match FRUIT_PROFILES keys
+// (backend/services/wine/preference_profile.py)
+export const FRUIT_OPTIONS = [
+  'orange', 'lemon', 'grapes', 'apple', 'pear', 'peach',
+  'apricot', 'cherry', 'strawberry', 'raspberry', 'blackberry', 'plum',
+] as const
+
 // ── API helpers ─────────────────────────────────────────────────────────────
 
 /**
@@ -59,4 +75,18 @@ export const rateWine = (userId: number, wineId: number, rating: number) =>
     wine_id: wineId,
     event_type: 'rate',
     rating,
+  }).then(r => r.data)
+
+/** Cold-start onboarding: save the fruits a user enjoys; backend infers + stores
+ * the wine taste details and returns them. */
+export const saveWinePreferences = (userId: number, fruits: string[]) =>
+  api.post<WinePreferences>('/wine/preferences', {
+    user_id: userId,
+    fruits,
+  }).then(r => r.data)
+
+/** Read a user's stored wine taste prefs (to prefill the picker). */
+export const getWinePreferences = (userId: number) =>
+  api.get<WinePreferences>('/wine/preferences', {
+    params: { user_id: userId },
   }).then(r => r.data)

@@ -12,6 +12,7 @@ their own. The CB/CF math is monkeypatched where we want to exercise the blend.
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -24,6 +25,37 @@ from sqlalchemy.pool import StaticPool
 
 from backend.db.models import Base, User, Wine, WineEvent
 from backend.services.wine import scoring
+from backend.services.wine.preference_profile import infer_details
+
+# Stand-in for serve_cb.get_blocks() so build_seed_vector yields a real vector
+# without needing the trained CB artifacts.
+_STUB_BLOCKS = {
+    "dim": 6,
+    "blocks": {
+        "grape":   {"start": 0, "end": 2},
+        "region":  {"start": 2, "end": 3},
+        "acidity": {"col": 3},
+        "body":    {"col": 4},
+        "abv":     {"col": 5},
+    },
+    "grape_vocab": {"Pinot Noir": 0, "Merlot": 1},
+}
+
+
+def _enable_cb_with_stub(monkeypatch):
+    """Make the CB path 'available' with stubbed math so the seed/style-filter
+    cold-start logic is exercised without real model artifacts."""
+    monkeypatch.setattr(scoring.serve_cb, "cb_available", lambda: True)
+    monkeypatch.setattr(scoring.serve_cb, "get_blocks", lambda: _STUB_BLOCKS)
+    monkeypatch.setattr(scoring.serve_cb, "cb_scores",
+                        lambda liked, cands, **k: {c: 0.0 for c in cands})
+    monkeypatch.setattr(scoring.serve_cb, "pairwise_similarity", lambda ids: {})
+
+
+def _set_prefs(db, user_id, fruits):
+    user = db.get(User, user_id)
+    user.wine_prefs = json.dumps(infer_details(fruits))
+    db.commit()
 
 
 # ── fixture ──────────────────────────────────────────────────────────────
@@ -81,6 +113,36 @@ def test_cold_user_not_style_filtered(db):
     out = scoring.rank_wines(db, user_id=1, top_n=6)
     styles = {w.style for w in out}
     assert "White" in styles and "Red" in styles
+
+
+# ── cold start with fruit preferences (onboarding seed) ───────────────────
+
+def test_cold_user_with_red_fruit_prefs_gets_reds(db, monkeypatch):
+    """Cherry prefs -> inferred style Red -> only reds, most popular first."""
+    _enable_cb_with_stub(monkeypatch)
+    _set_prefs(db, 1, ["cherry"])
+    out = scoring.rank_wines(db, user_id=1, top_n=3)
+    assert out, "expected recommendations"
+    assert all(w.style == "Red" for w in out)
+    assert out[0].id == 1                       # Top Red is most popular red
+
+
+def test_cold_user_with_white_fruit_prefs_gets_whites(db, monkeypatch):
+    """Lemon prefs -> inferred styles White/Sparkling -> only whites."""
+    _enable_cb_with_stub(monkeypatch)
+    _set_prefs(db, 1, ["lemon"])
+    out = scoring.rank_wines(db, user_id=1, top_n=3)
+    assert out, "expected recommendations"
+    assert all(w.style == "White" for w in out)
+
+
+def test_cold_user_prefs_ignored_when_cb_unavailable(db, monkeypatch):
+    """Prefs set but no CB artifact -> graceful fallback to popularity cold start
+    (spans styles, exactly as before)."""
+    monkeypatch.setattr(scoring.serve_cb, "cb_available", lambda: False)
+    _set_prefs(db, 1, ["cherry"])
+    out = scoring.rank_wines(db, user_id=1, top_n=6)
+    assert {w.style for w in out} >= {"Red", "White"}
 
 
 # ── style hard-filter ────────────────────────────────────────────────────

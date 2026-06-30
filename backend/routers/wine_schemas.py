@@ -7,7 +7,7 @@ Kept separate from the router so the route handlers stay focused on HTTP logic.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -44,3 +44,18 @@ class PairRequest(BaseModel):
 class PairedWineOut(WineOut):
     # cosine pairing score in [0, 1] between the recipe and this wine
     pairing_score: float
+
+
+class WinePreferencesIn(BaseModel):
+    user_id: int
+    # everyday fruits the user enjoys (keys of FRUIT_PROFILES)
+    fruits:  List[str] = []
+
+
+class WinePreferencesOut(BaseModel):
+    """The wine taste details inferred from the user's fruit picks and stored."""
+    fruits:  List[str] = []
+    grapes:  List[str] = []
+    body:    Optional[str] = None
+    acidity: Optional[str] = None
+    styles:  List[str] = []

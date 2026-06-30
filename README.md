@@ -36,10 +36,10 @@ backend/
   main.py          FastAPI app
   routers/         pantry, recipes, users, vision, shopping, wine
   services/        scoring, expiry, ingredient_match, beta_updater, vision_agent,
-                   wine:     scoring, synthesizer, expert_pairing
+                   wine:     scoring, helpers, serializers, preference_profile
   ml/              recipes:  train_cf, train_cb, item_similarity, serve_cf, serve_cb, cold_start
-                   wine:     train_cb, train_wine_als, item_similarity,
-                             serve_cb, serve_cf, cold_start, flavor_bridge
+                   wine:     training/ (train_cb, train_wine_als, build_wine_split,
+                             item_similarity, eval_*), serving/ (serve_cf, serve_cb, serve_pairing)
   db/              SQLAlchemy models (User, Recipe, Wine, UserEvent, WineEvent, …) + seed scripts
                    wine: seed_wines, reset_wines, compute_wine_stats
 data/              download scripts (Food.com + wine), EDA notebook
@@ -48,26 +48,33 @@ tests/             backend tests (unit + behavioral integration) + Playwright E2
 
 ## Wine recommender
 
-A second module recommends **wines**. The end goal is two features, each a
-blend of collaborative filtering and content-based scoring:
+A second module recommends **wines**. It ships two features, each a blend of
+collaborative filtering and content-based scoring:
 
 - **Recommend me a wine** = wine-CF + wine↔wine CB
-- **Pair with a recipe** = wine-CF + wine↔food CB
+- **Pair with a recipe** = wine↔food CB
 
-Three models back these: **wine-CF** (trained — confidence-weighted ALS,
-`models/wine_als_*`), **wine↔wine CB** (built — structured weighted vector), and
-**wine↔food CB** (to do, for recipe pairing).
+Three models back these — all trained/built and served by the app (with a
+graceful popularity fallback if an artifact is missing):
+- **wine-CF** — confidence-weighted ALS on ~21M X-Wines ratings (`models/wine_als_*`).
+- **wine↔wine CB** — structured weighted vector (`models/wine_cb_*`).
+- **wine↔food CB** — 12-category food-pairing vectors + empirical rules
+  (`models/wine_pair_*`, `models/pairing_rules.json`).
 
-> **Current state.** **"Recommend me a wine" is personalized** — a blend of
-> collaborative filtering (ALS) and content-based scoring with a popularity cold
-> start. The **pair-with-recipe** feature (wine↔food CB) is still future work.
->
 > **How the ranking works** (`backend/services/wine/scoring.py`):
-> - **Cold start** (0 ratings) → top wines by Bayesian-smoothed popularity.
-> - **Warming** (1–4 ratings) → content-based taste profile + popularity.
-> - **Warm** (≥5 ratings) → `0.5·CF + 0.5·CB`, min-max calibrated.
-> - **Style filter** — candidates restricted to the styles the user drinks (or
->   an explicit style choice from the UI).
+> - **Cold start** (0 ratings) → if the user picked favorite **fruits** during
+>   onboarding, those seed a content-based taste profile (fruit → grape / body /
+>   acidity / style); otherwise top wines by Bayesian-smoothed popularity. Either
+>   way the feed is MMR-diversified so the first impression isn't N near-identical
+>   bottles.
+> - **Warming** (1–4 ratings) → content-based taste profile + a popularity floor.
+> - **Warm** (≥5 ratings) → `0.45·CF + 0.45·CB + 0.10·popularity`, each min-max
+>   calibrated; the popularity term is a floor so results stay sensible when CF
+>   (user absent from the ALS factors) or CB (flat profile) give no signal.
+> - **Style filter** — candidates restricted to the styles the user drinks (or an
+>   explicit style choice from the UI).
+> - **Pairing** (`POST /wine/pair`) maps a recipe's ingredients to 12 food
+>   categories and ranks wines by category cosine + empirical pairing rules.
 >
 > The **content-based** model is a *structured weighted vector* (not TF-IDF, not
 > embeddings — X-Wines has no free text): grape (multi-hot), region (rolled up
@@ -76,16 +83,20 @@ Three models back these: **wine-CF** (trained — confidence-weighted ALS,
 > palate-first prior (acidity + body dominate). See
 > [docs/wine-cb-branch-summary.md](docs/wine-cb-branch-summary.md).
 
-On the `/wine` page the user clicks **"Suggest me a wine"**, optionally picks
-which styles to generate, and gets a personalized feed — cards grouped by style
-and food pairing, each rateable 1–5 stars.
+On the `/wine` page a first-time user optionally picks the **fruits** they enjoy
+(a one-time cold-start onboarding step), then clicks **"Suggest me a wine"** and
+gets a personalized, style-filtered feed of cards, each rateable 1–5 stars. On a
+recipe page, **"Pair me a wine"** suggests bottles for that specific dish.
 
 ### Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET`  | `/wine/ranked?top_n=&user_id=&styles=` | Personalized ranking (popularity if no `user_id`) |
+| `POST` | `/wine/pair` | Top-N wines that pair with a recipe (`{recipe_id, top_n}`) |
 | `POST` | `/wine-events` | Log a wine rating (1–5 stars) |
+| `POST` | `/wine/preferences` | Save fruit picks → inferred taste prefs (cold-start onboarding) |
+| `GET`  | `/wine/preferences?user_id=` | Read a user's stored taste prefs |
 
 ### Dataset
 
@@ -244,19 +255,26 @@ Run the recipe training steps directly (there is no longer a combined
 | 5 | `python3 -m backend.ml.train_cb` | `models/cb_matrix.npz` (TF-IDF content-based) |
 | 6 | `python3 -m backend.ml.evaluate` | `models/eval_results.json` (RMSE, Precision@K, NDCG@K) |
 
-For wine, see **Wine recommender → Seed + try the demo** above for seeding. Then
-build the model artifacts:
+For wine, see **Wine recommender → Seed + try the demo** above for seeding. The
+content-based and pairing artifacts build **straight from the seeded wines** (no
+raw dataset needed — runs in seconds):
 
 ```bash
-# 1. region rollup (2,160 appellations → ~107 parents)  [data processing]
-python3 -m data.wine.region_rollup
-# 2. content-based structured wine matrix
-python3 -m backend.ml.wine.training.train_cb
-# 3. (CF/ALS) — see backend/ml/wine/training/train_wine_als.py
-#    inspect neighbors to sanity-check CB:  python3 -m data.wine.inspect_neighbors
+# Content-based (wine↔wine):
+python3 -m data.wine.region_rollup                  # 2,160 appellations → ~107 parents
+python3 -m backend.ml.wine.training.train_cb        # → models/wine_cb_*
+
+# Pairing (wine↔food):
+python3 -m data.pairing.build_wine_pairing_vectors  # → models/wine_pair_*
+python3 -m data.pairing.extract_pairing_rules       # → models/pairing_rules.json (optional; needs the labeled CSV)
+
+# Collaborative filtering (ALS) — needs the full X-Wines ratings download + `pip install implicit`:
+python3 -m backend.ml.wine.training.build_wine_split  # frozen leave-k-out split
+python3 -m backend.ml.wine.training.train_wine_als    # → models/wine_als_*
 ```
 
-After building, restart the backend — it picks up model files automatically.
+After building, restart the backend — it picks up model files automatically and
+degrades to popularity for any artifact that's absent.
 
 ---
 
@@ -419,7 +437,7 @@ backend/
     beta_updater.py          Daily preference learning job
     vision_agent.py          GPT-4o vision + ingredient canonicalization
     wine/                    Personalized wine ranking + pairing
-                               (scoring.py, helpers.py, serializers.py)
+                               (scoring, helpers, serializers, preference_profile)
   ml/
     cold_start.py            Preference-seeded cold start CF (with fallback)
     item_similarity.py       Sparse item-item similarity matrix (training)
@@ -495,7 +513,13 @@ data/
   wine/
     download_wines.py        X-Wines download
     clean_wines.py           Raw X-Wines CSVs → clean_wines.csv + clean_ratings.csv
+    region_rollup.py         Appellation → parent-region map (CB region feature)
     clean_and_seed.sh        Clean → reset → seed → compute stats (one shot)
+  pairing/
+    pairing_vocabulary.py    12 shared food categories + harmonize token map
+    recipe_categories.py     Recipe ingredients → 12-dim category vector
+    build_wine_pairing_vectors.py  Wine harmonize → 12-dim pairing vectors
+    extract_pairing_rules.py Labeled pairing CSV → (wine_cat × food_cat) rules
 
 models/                      Trained artifacts (git-ignored)
   # recipes
@@ -505,14 +529,14 @@ models/                      Trained artifacts (git-ignored)
   cb_matrix.npz              TF-IDF recipe embeddings
   cb_vectorizer.pkl          Fitted TfidfVectorizer
   eval_results.json          Offline evaluation results
-  # wine — currently present
-  wine_als_model.npz         Confidence-weighted ALS factors + id maps
+  # wine — all served by the app (popularity fallback if absent)
+  wine_als_model.npz         Confidence-weighted ALS factors + id maps (CF)
   wine_als_meta.json         Ranking metrics + hyperparams + timestamp
   wine_split/                Frozen leave-k-out train/test split
-  # wine — produced by backend/ml/wine/training/ for the future CB features
-  #         (not consumed by the app yet — serving is popularity-only for now)
-  wine_cb_*                  TF-IDF wine embeddings (when train_cb.py is run)
-  wine_sim_*                 Wine item-item cosine (when item_similarity.py is run)
+  wine_cb_*                  Structured weighted-vector CB matrix + ids + blocks
+  region_rollup.json         Appellation → parent-region map (CB region feature)
+  wine_pair_*                Wine↔food 12-category pairing vectors + ids
+  pairing_rules.json         Empirical (wine_cat × food_cat) pairing-quality table
 ```
 
 ---
