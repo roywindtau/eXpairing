@@ -29,6 +29,8 @@ data/openfoodfacts_cache.json
 # Wine datasets (download via data/wine/download_wines.py)
 data/wine/**/*.csv
 data/wine/*.csv
+# ...but keep the small committed sample so the wine demo seeds on a fresh clone
+!data/wine/clean_wines.sample.csv
 
 # Frontend
 frontend/node_modules/

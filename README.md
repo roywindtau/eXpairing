@@ -104,7 +104,17 @@ recipe page, **"Pair me a wine"** suggests bottles for that specific dish.
 
 ### Seed + try the demo
 
-The wine catalog is seeded from the cleaned X-Wines CSV, then popularity stats are aggregated from the 21M ratings:
+A small **100-wine sample is committed** (`data/wine/clean_wines.sample.csv`,
+with popularity stats), so the wine catalog seeds on a fresh clone with **no
+download**:
+
+```bash
+python3 -m backend.db.wine.seed_wines   # uses clean_wines.csv if present, else the sample
+```
+
+The content-based and pairing models then build straight from these wines (see
+**Full ML training** below) — also no download. For the full 100k-wine catalog,
+seed from the cleaned X-Wines CSV and aggregate popularity from the 21M ratings:
 
 ```bash
 # One-shot: clean → reset wine tables → seed wines → compute avg_rating/n_ratings
