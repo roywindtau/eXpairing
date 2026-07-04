@@ -34,7 +34,7 @@ Additional data-related information:
 ### Frontend
 - **React 18 & TypeScript** — component-based single-page application with static type safety.
 - **Vite** — frontend build tool and hot-reloading development server.
-- **TailwindCSS & CSS Modules** — custom styling, score ring graphics, and responsive layouts.
+- **CSS Modules & Custom Properties** — custom styling, score ring graphics, and responsive layouts.
 - **Axios** — HTTP client for asynchronous REST API communication (`client.ts` and `wine.ts`).
 - **Playwright** — end-to-end browser testing and automated presentation recording (63 tests).
 
@@ -168,7 +168,7 @@ The system is designed with a decoupled three-layer architecture: a React TypeSc
 5. **MMR Reranking & Feedback Loop**: Top 60 candidates pass through MMR diversity reranking (λ=0.7) using ingredient Jaccard similarity. Top 20 recipes returned to UI with complete score breakdowns. User actions (`cook`, `rate`, `skip`) are saved to SQLite, feeding synthetic rating generators (`max(3.0, 4.0 - n_missing*0.3)`) and daily preference updates (`β`).
 
 **System Flow (Request Lifecycle for `GET /wine/ranked` & `POST /wine/pair`):**
-1. **Personalized Wine Feed (`GET /wine/ranked`)**: Applies hard style filters and checks user rating counts. *Cold start* (0 ratings) → Bayesian popularity prior. *Warming* (1-4 ratings) → Content-based taste profile + popularity. *Warm* (≥5 ratings) → `0.5·ALS_CF + 0.5·CB` min-max calibrated. Active app users are folded in dynamically by solving online ALS user updates (`C = 1 + 5·rating`) against frozen item factors.
+1. **Personalized Wine Feed (`GET /wine/ranked`)**: Applies hard style filters and checks user rating counts. *Cold start* (0 ratings) → Bayesian popularity prior. *Warming* (1-4 ratings) → Content-based taste profile + popularity. *Warm* (≥5 ratings) → `0.45·ALS_CF + 0.45·CB + 0.10·popularity` min-max calibrated. Active app users are folded in dynamically by solving online ALS user updates (`C = 1 + 5·rating`) against frozen item factors.
 2. **Automated Recipe-Wine Pairing (`POST /wine/pair`)**: Accepts a `recipe_id`, converts its ingredients to a 12-dim food category vector, and ranks wines by combining category cosine similarity (`ALPHA_COSINE=0.6`) with empirical sommelier pairing rules (`BETA_RULES=0.4`), applying MMR reranking for bottle diversity.
 
 ## Development Environment
