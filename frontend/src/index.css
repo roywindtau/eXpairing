@@ -46,7 +46,10 @@
   --gray-800:   #2e2c26;
   --gray-900:   #201e19;
 
-  --surface:    #ffffff;
+  /* Off-white card surface — warm paper, not stark white. */
+  --surface:    #fbfaf7;
+  --surface-2:  #f4f2ec;   /* nested wells inside a card */
+  --page-bg:    #eeece5;   /* slightly darker so cards read as raised */
 
   --radius-sm:  10px;
   --radius-md:  14px;
@@ -54,8 +57,9 @@
   --font-display: 'Fraunces', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
   --font-body:    'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
-  --shadow-sm: 0 1px 2px rgba(32,30,25,.05), 0 1px 6px rgba(32,30,25,.04);
-  --shadow-md: 0 2px 6px rgba(32,30,25,.06), 0 16px 32px -16px rgba(32,30,25,.18);
+  /* Softer, closer shadows — the flat "raised paper" look, not a glowy AI card. */
+  --shadow-sm: 0 1px 2px rgba(32,30,25,.04), 0 2px 8px -4px rgba(32,30,25,.10);
+  --shadow-md: 0 1px 3px rgba(32,30,25,.05), 0 12px 28px -14px rgba(32,30,25,.20);
   --ring: 0 0 0 3px rgba(67,160,71,.18);
 }
 
@@ -64,13 +68,13 @@
 
 body {
   font-family: var(--font-body);
-  background-color: #f6f3ec;
-  background-image:
-    radial-gradient(1100px 480px at 12% -8%,  rgba(67,160,71,.08),  transparent 60%),
-    radial-gradient(900px  420px at 95% -12%, rgba(232,165,60,.09), transparent 55%);
+  /* Flat, editorial off-white. One faint warm wash at the very top so the
+     sticky nav has something to sit against — no busy dual-gradient glow. */
+  background-color: var(--page-bg);
+  background-image: linear-gradient(180deg, #f3f1ea 0, var(--page-bg) 340px);
   background-attachment: fixed;
   color: var(--gray-900);
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -92,10 +96,10 @@ img { max-width: 100%; }
   justify-content: space-between;
   padding: 0 1.5rem;
   height: 60px;
-  background: rgba(255, 254, 250, .82);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  border-bottom: 1px solid rgba(230, 226, 216, .9);
+  background: rgba(248, 246, 240, .85);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid var(--gray-200);
   position: sticky; top: 0; z-index: 10;
 }
 
@@ -113,14 +117,13 @@ img { max-width: 100%; }
 
 /* The 🍳 mark, framed in a small brand-green tile */
 .nav-brand > span {
-  width: 34px; height: 34px;
-  border-radius: 11px;
+  width: 32px; height: 32px;
+  border-radius: 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
-  background: linear-gradient(135deg, #5cb860, var(--green-600));
-  box-shadow: 0 2px 8px rgba(46,125,50,.35), inset 0 1px 0 rgba(255,255,255,.25);
+  font-size: 16px;
+  background: var(--green-600);
 }
 
 .nav-links { display: flex; gap: .3rem; }
@@ -139,9 +142,11 @@ img { max-width: 100%; }
 .nav-link.active { color: var(--green-700); background: var(--green-100); font-weight: 600; }
 
 /* ── Page container ──────────────────────────────────────── */
+/* Wider content column with slimmer side gutters — reads like a real
+   product, not a narrow centered doc. */
 .page {
-  padding: 2rem 1.5rem 3.5rem;
-  max-width: 960px;
+  padding: 2.25rem 2rem 4rem;
+  max-width: 1160px;
   margin: 0 auto;
   width: 100%;
 }
@@ -159,7 +164,7 @@ img { max-width: 100%; }
 .card {
   background: var(--surface);
   border: 1px solid var(--gray-200);
-  border-radius: 16px;
+  border-radius: 14px;
   padding: 1.25rem;
   box-shadow: var(--shadow-sm);
   transition: box-shadow .25s ease, border-color .25s ease;
@@ -188,15 +193,20 @@ img { max-width: 100%; }
    stretching its row-mates to match height. */
 .recipe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
   gap: 1.5rem;
   align-items: start;
 }
 
 .wine-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.25rem;
+}
+
+/* On narrower viewports fall back to a single wide column. */
+@media (max-width: 620px) {
+  .recipe-grid { grid-template-columns: 1fr; }
 }
 
 /* Wine cards stretch to equal height so action rows align across a row. */
@@ -207,7 +217,7 @@ img { max-width: 100%; }
   display: inline-flex;
   align-items: center;
   gap: .4rem;
-  padding: .5rem 1rem;
+  padding: .55rem 1.05rem;
   border-radius: 10px;
   font-size: .875rem;
   font-weight: 600;
@@ -219,19 +229,18 @@ img { max-width: 100%; }
 .btn:focus-visible { outline: none; box-shadow: var(--ring); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 
+/* Flat, solid brand green — confident and editorial, no glossy gradient. */
 .btn-primary {
-  background: linear-gradient(180deg, #46a54b, var(--green-600));
+  background: var(--green-600);
   color: white;
-  border-color: rgba(37, 101, 42, .55);
-  box-shadow: 0 1px 2px rgba(46,125,50,.35), inset 0 1px 0 rgba(255,255,255,.18);
 }
-.btn-primary:hover:not(:disabled) { background: linear-gradient(180deg, #3f9a44, #29702d); }
+.btn-primary:hover:not(:disabled) { background: var(--green-700); }
 
 /* Destructive actions are quiet until hovered */
 .btn-danger {
-  background: var(--surface);
+  background: transparent;
   color: var(--red-600);
-  border-color: #ecccc2;
+  border-color: #e3cdc5;
 }
 .btn-danger:hover:not(:disabled) { background: var(--red-50); border-color: var(--red-400); }
 
@@ -239,9 +248,8 @@ img { max-width: 100%; }
   background: var(--surface);
   color: var(--gray-700);
   border-color: var(--gray-300);
-  box-shadow: 0 1px 2px rgba(32,30,25,.04);
 }
-.btn-ghost:hover:not(:disabled) { background: var(--gray-50); border-color: var(--gray-400); }
+.btn-ghost:hover:not(:disabled) { background: var(--surface-2); border-color: var(--gray-400); }
 
 /* ── Badges ──────────────────────────────────────────────── */
 .badge {
@@ -261,6 +269,24 @@ img { max-width: 100%; }
 .badge-red    { background: var(--red-100);    color: var(--red-600); }
 .badge-blue   { background: var(--blue-100);   color: var(--blue-600); }
 .badge-gray   { background: var(--gray-100);   color: var(--gray-600); }
+
+/* Selectable pill (wine cold-start fruit/style chips). Prominent hover:
+   lifts, deepens shadow, and brightens the border so unselected options
+   clearly invite a click. Inline styles set the per-chip color; this only
+   adds motion + elevation on hover. */
+.pill {
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+  will-change: transform;
+}
+.pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px -6px rgba(32,30,25,.35);
+  border-color: var(--gray-500) !important;
+}
+.pill:active { transform: translateY(0); }
+/* When already selected, keep the lift but skip the border override. */
+.pill.is-on:hover { border-color: transparent !important; filter: brightness(1.05); }
 
 /* ── Forms ───────────────────────────────────────────────── */
 .form-group { display: flex; flex-direction: column; gap: .35rem; }
@@ -287,16 +313,15 @@ img { max-width: 100%; }
 .empty { text-align: center; padding: 3.5rem 1rem; color: var(--gray-500); }
 
 .empty-icon {
-  width: 76px; height: 76px;
+  width: 72px; height: 72px;
   margin: 0 auto 1.1rem;
   border-radius: 50%;
-  background: linear-gradient(160deg, var(--surface), var(--gray-100));
+  background: var(--surface-2);
   border: 1px solid var(--gray-200);
-  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.1rem;
+  font-size: 2rem;
 }
 
 .empty h3 {

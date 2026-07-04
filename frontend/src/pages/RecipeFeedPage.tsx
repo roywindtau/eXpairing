@@ -137,10 +137,10 @@ export function RecipeFeedPage({ userId }: Props) {
 
   return (
     <div className="page">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>What to cook tonight?</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 12, color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+        <h1 className="page-title" style={{ margin: 0, fontSize: '2.25rem' }}>What to cook tonight?</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <label style={{ fontSize: 13, color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>
             Sort by
           </label>
           <select
@@ -148,8 +148,8 @@ export function RecipeFeedPage({ userId }: Props) {
             onChange={e => setSortKey(e.target.value as SortKey)}
             aria-label="Sort recipes by"
             style={{
-              fontSize: 13, padding: '6px 10px',
-              border: '1px solid var(--gray-300)', borderRadius: 8,
+              fontSize: 14, padding: '9px 12px',
+              border: '1px solid var(--gray-300)', borderRadius: 10,
               background: 'white', color: 'var(--gray-700)',
               cursor: 'pointer', boxShadow: 'var(--shadow-sm)',
             }}
@@ -161,7 +161,7 @@ export function RecipeFeedPage({ userId }: Props) {
           <button
             className="btn btn-ghost"
             onClick={() => { setSortKey('final_score'); setQuery(''); setSkipped(new Set()); setCooked(new Set()); load() }}
-            style={{ fontSize: 13 }}
+            style={{ fontSize: 14 }}
           >
             ↻ Refresh
           </button>
@@ -171,17 +171,17 @@ export function RecipeFeedPage({ userId }: Props) {
       <CfStrategyBanner strategy={strategy} />
 
       {/* Search bar — narrows the loaded pool by recipe name or ingredient */}
-      <div style={{ position: 'relative', marginBottom: 14 }}>
+      <div style={{ position: 'relative', marginBottom: 18 }}>
         <span style={{
-          position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-          color: 'var(--gray-400)', pointerEvents: 'none',
+          position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
+          color: 'var(--gray-400)', pointerEvents: 'none', fontSize: 17,
         }}>🔍</span>
         <input
           className="form-input"
           placeholder="Search by name or ingredient…"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          style={{ width: '100%', paddingLeft: 36 }}
+          style={{ width: '100%', paddingLeft: 46, fontSize: 16, padding: '.85rem .9rem .85rem 46px' }}
         />
       </div>
 

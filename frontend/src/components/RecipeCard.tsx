@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { RecipeScore } from '../api/client'
 import { ScoreExplainer } from './ScoreExplainer'
+import { ScoreRing } from './ScoreRing'
 import { WinePairing } from './WinePairing'
 import { logEvent, addToShoppingList } from '../api/client'
 
@@ -16,6 +17,15 @@ interface Props {
   userId: number
   onCooked?: () => void
   onSkipped?: () => void
+}
+
+// Card look: a bright warm off-white base with a score-colored left accent
+// edge (green → amber → terracotta by match quality), tying each card to its
+// score ring.
+function cardStyle(scorePct: number): React.CSSProperties {
+  const edge = scorePct >= 75 ? 'var(--green-600)' : scorePct >= 55 ? 'var(--green-500)'
+    : scorePct >= 35 ? 'var(--amber-400)' : 'var(--red-400)'
+  return { background: '#fffdf8', borderColor: '#efe9dc', borderLeft: `6px solid ${edge}` }
 }
 
 // Recipe names arrive lower-cased from the dataset ("kentucky hot browns").
@@ -199,34 +209,37 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
   const missingCount = recipe.missing_ingredients.length
 
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: '1.5rem 1.5rem 1.25rem' }}>
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: '1.75rem 1.75rem 1.5rem', position: 'relative', ...cardStyle(Math.round(recipe.final_score * 100)) }}>
 
-      {/* Title */}
-      <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 12, lineHeight: 1.25 }}>
-        <Link
-          to={`/recipe/${recipe.recipe_id}`}
-          style={{
-            color: 'var(--gray-900)', textDecoration: 'none',
-            overflow: 'hidden', display: '-webkit-box',
-            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--green-700)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--gray-900)')}
-        >
-          {titleCase(recipe.recipe_name)}
-        </Link>
-      </h3>
+      {/* Header: title + meta on the left, match-score ring on the right */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18, marginBottom: 18 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ fontSize: 24, fontWeight: 600, marginBottom: 10, lineHeight: 1.22 }}>
+            <Link
+              to={`/recipe/${recipe.recipe_id}`}
+              style={{
+                color: 'var(--gray-900)', textDecoration: 'none',
+                overflow: 'hidden', display: '-webkit-box',
+                WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--green-700)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--gray-900)')}
+            >
+              {titleCase(recipe.recipe_name)}
+            </Link>
+          </h3>
 
-      {/* One quiet meta line: score · time · rating · pantry match */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, fontSize: 13, color: 'var(--gray-500)' }}>
-        <span style={{ color: 'var(--green-700)', fontWeight: 600 }}>
-          {Math.round(recipe.final_score * 100)}% match
-        </span>
-        {!!recipe.minutes  && <span>⏱ {recipe.minutes}m</span>}
-        {!!recipe.avg_rating && <span style={{ color: 'var(--amber-600)' }}>★ {recipe.avg_rating.toFixed(1)}</span>}
-        <span style={{ color: missingCount === 0 ? 'var(--green-700)' : 'var(--gray-500)', fontWeight: missingCount === 0 ? 600 : 400 }}>
-          {missingCount === 0 ? '✓ Have everything' : `${matchPct}% in pantry`}
-        </span>
+          {/* Quiet meta line: time · rating · pantry match */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 14.5, color: 'var(--gray-500)', flexWrap: 'wrap' }}>
+            {!!recipe.minutes  && <span>⏱ {recipe.minutes}m</span>}
+            {!!recipe.avg_rating && <span style={{ color: 'var(--amber-600)' }}>★ {recipe.avg_rating.toFixed(1)}</span>}
+            <span style={{ color: missingCount === 0 ? 'var(--green-700)' : 'var(--gray-500)', fontWeight: missingCount === 0 ? 600 : 400 }}>
+              {missingCount === 0 ? '✓ Have everything' : `${matchPct}% in pantry`}
+            </span>
+          </div>
+        </div>
+
+        <ScoreRing value={recipe.final_score} size={72} label="match" />
       </div>
 
       {/* Buy missing — surfaced in the body when ingredients are short */}
@@ -262,13 +275,13 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             className="btn btn-primary"
-            style={{ fontSize: 13, padding: '.4rem .9rem' }}
+            style={{ fontSize: 15, padding: '.6rem 1.3rem' }}
             onClick={handleCook}
             disabled={submitting}
           >
             {submitting ? '…' : '✓ Cook this'}
           </button>
-          <button className="btn btn-ghost" style={{ fontSize: 13, padding: '.4rem .9rem' }} onClick={handleSkip}>
+          <button className="btn btn-ghost" style={{ fontSize: 15, padding: '.6rem 1.3rem' }} onClick={handleSkip}>
             Skip
           </button>
         </div>
@@ -279,9 +292,9 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
         <button
           onClick={() => setExpanded(e => !e)}
           style={{
-            fontSize: 12, fontWeight: 500, color: 'var(--gray-400)',
+            fontSize: 13, fontWeight: 500, color: 'var(--gray-400)',
             background: 'none', border: 'none', cursor: 'pointer',
-            textAlign: 'center', padding: '10px 0 0', marginTop: 4,
+            textAlign: 'center', padding: '12px 0 0', marginTop: 6,
           }}
         >
           {expanded ? 'Hide details' : 'Details'}
