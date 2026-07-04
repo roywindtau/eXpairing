@@ -114,7 +114,8 @@ npm run dev
 #### Running via Docker
 The recommended way to run the full stack containerized:
 ```bash
-./dev.sh                 # Starts containers and seeds dev DB if needed (backend: port 8000, frontend: port 5173)
+./dev.sh                 # Starts containers; auto-seeds dev DB only if fridge2fork.db is missing (backend: port 8000, frontend: port 5173)
+./dev.sh --seed          # Forces a fresh dev DB seed before starting (safe to re-run)
 ./dev.sh --rebuild       # Forces container rebuild after modifying dependencies
 ```
 *Note on Docker Wiring:* `docker compose` merges `docker-compose.override.yml` over `docker-compose.yml` to run Vite dev server with HMR. To run production static build with nginx instead:
