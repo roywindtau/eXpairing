@@ -1,5 +1,5 @@
 /**
- * Fridge2Fork — Feature Demo
+ * eXpairing — Feature Demo
  *
  * End-to-end walkthrough: Onboarding → Pantry → Demo Scan → Recipe Feed
  * → Score breakdown → Cook & Rate (x5) → Recipe Detail → Search → Profile → Shopping List
@@ -60,7 +60,7 @@ async function addPantryItem(
 
 // ── demo ─────────────────────────────────────────────────────────────────────
 
-test('Fridge2Fork full feature demo', async ({ page }) => {
+test('eXpairing full feature demo', async ({ page }) => {
   test.setTimeout(180_000)
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -69,7 +69,7 @@ test('Fridge2Fork full feature demo', async ({ page }) => {
   await clearUser(page)
 
   // App renders OnboardingPage inline at root when no userId in localStorage
-  await page.getByRole('heading', { name: 'Fridge2Fork' }).waitFor({ timeout: 8000 })
+  await page.getByRole('heading', { name: 'eXpairing' }).waitFor({ timeout: 8000 })
   await pause(900)
 
   // Fill name

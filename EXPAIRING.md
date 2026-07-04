@@ -1,4 +1,4 @@
-# Fridge2Fork — Complete Project Documentation
+# eXpairing — Complete Project Documentation
 
 **Course:** Recommender Systems Workshop — Tel Aviv University  
 **Instructor:** Dr. Rubi Boim  
@@ -33,7 +33,7 @@
 
 ## 1. Project Overview
 
-Fridge2Fork is a recipe recommender system that predicts user preference using collaborative filtering and adjusts rankings using domain-specific constraints (expiry urgency, ingredient availability).
+eXpairing is a recipe recommender system that predicts user preference using collaborative filtering and adjusts rankings using domain-specific constraints (expiry urgency, ingredient availability).
 
 ### The problem
 
@@ -563,7 +563,7 @@ smartrecipes/
 │   ├── playwright.config.ts        E2E test configuration
 │   ├── playwright-demo.config.ts   Demo recording configuration (video: on)
 │   ├── e2e/
-│   │   ├── fridge2fork.spec.ts     63 Playwright E2E tests
+│   │   ├── expairing.spec.ts     63 Playwright E2E tests
 │   │   └── demo.spec.ts            Full feature demo recording script
 │   └── src/
 │       ├── App.tsx                 Router, stale-user detection, nav
@@ -619,7 +619,7 @@ smartrecipes/
 ├── frontend/Dockerfile.frontend
 ├── requirements.txt
 ├── README.md
-└── FRIDGE2FORK.md
+└── EXPAIRING.md
 ```
 
 ---
@@ -1023,7 +1023,7 @@ cd frontend
 npx playwright test e2e/demo.spec.ts --config=playwright-demo.config.ts
 ```
 
-Produces `demo-video/demo-Fridge2Fork-full-feature-demo/video.webm`.
+Produces `demo-video/demo-eXpairing-full-feature-demo/video.webm`.
 Covers all 10 sections: Onboarding → Pantry (with autocomplete demo) → Vision scan → Recipe feed (sort + score breakdown) → Cook & Rate ×5 → CF warm transition → Recipe detail → Browse → Profile → Shopping list.
 
 ### Key tests for the grade
@@ -1258,4 +1258,4 @@ Three new evaluation capabilities:
 
 ---
 
-*Fridge2Fork — Recommender Systems Workshop, Tel Aviv University*
+*eXpairing — Recommender Systems Workshop, Tel Aviv University*

@@ -32,7 +32,7 @@ test('UI visual review — demo states', async ({ page }) => {
   // ══════════════════════════════════════════════════════════════════════
   // 1. ONBOARDING
   // ══════════════════════════════════════════════════════════════════════
-  await page.getByRole('heading', { name: 'Fridge2Fork' }).waitFor({ timeout: 8000 })
+  await page.getByRole('heading', { name: 'eXpairing' }).waitFor({ timeout: 8000 })
   await shot(page, '01-onboarding-initial')
 
   await page.getByPlaceholder('e.g. Rubi').fill('Demo User')

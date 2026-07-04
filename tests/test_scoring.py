@@ -2,7 +2,7 @@
 tests/test_scoring.py
 ---------------------
 Unit tests for expiry.py, ingredient_match.py, and scoring.py.
-Run with:  cd fridge2fork && python -m pytest tests/ -v
+Run with:  cd expairing && python -m pytest tests/ -v
 """
 
 import sys, os

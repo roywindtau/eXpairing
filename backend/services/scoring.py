@@ -1,5 +1,5 @@
 """
-scoring.py — core ranking engine for Fridge2Fork.
+scoring.py — core ranking engine for eXpairing.
 
 PREDICTION TARGET
 -----------------

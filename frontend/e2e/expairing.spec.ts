@@ -12,7 +12,7 @@ async function completeOnboarding(
   opts: { name?: string; beta?: number; tags?: string[] } = {},
 ) {
   await page.goto('/')
-  await expect(page.getByText('Fridge2Fork')).toBeVisible()
+  await expect(page.getByText('eXpairing')).toBeVisible()
 
   if (opts.name) {
     await page.getByPlaceholder('e.g. Rubi').fill(opts.name)
@@ -40,7 +40,7 @@ test.describe('Onboarding', () => {
 
   test('shows onboarding when no user stored', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Fridge2Fork' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'eXpairing' })).toBeVisible()
     await expect(page.getByText('Rank recipes to minimize food waste')).toBeVisible()
   })
 

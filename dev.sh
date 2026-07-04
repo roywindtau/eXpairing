@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev.sh — spin up Fridge2Fork in one command
+# dev.sh — spin up eXpairing in one command
 # Usage: ./dev.sh [--seed] [--rebuild]
 #   --seed     seed the DB with 20 dev recipes before starting (safe to re-run)
 #   --rebuild  force Docker image rebuild (use after requirements/package changes)

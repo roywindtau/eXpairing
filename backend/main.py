@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Fridge2Fork API",
+    title="eXpairing API",
     description="Recipe recommendation engine that minimizes food waste.",
     version="0.1.0",
     lifespan=lifespan,

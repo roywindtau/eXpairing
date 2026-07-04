@@ -65,7 +65,7 @@ export function OnboardingPage({ onCreated }: Props) {
             background: 'linear-gradient(135deg, #5cb860, var(--green-600))',
             boxShadow: '0 6px 18px rgba(46,125,50,.3), inset 0 1px 0 rgba(255,255,255,.25)',
           }}>🍳</div>
-          <h1 style={{ fontSize: 27, fontWeight: 600, color: 'var(--green-700)', fontFamily: 'var(--font-display)', letterSpacing: '-.015em' }}>Fridge2Fork</h1>
+          <h1 style={{ fontSize: 27, fontWeight: 600, color: 'var(--green-700)', fontFamily: 'var(--font-display)', letterSpacing: '-.015em' }}>eXpairing</h1>
           <p style={{ fontSize: 14, color: 'var(--gray-500)', marginTop: 4 }}>
             Rank recipes to minimize food waste
           </p>

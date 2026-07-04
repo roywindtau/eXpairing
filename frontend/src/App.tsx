@@ -33,7 +33,7 @@ export default function App() {
       <div className="app-shell">
         <nav className="nav">
           <NavLink to="/" className="nav-brand" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <span>🍳</span> Fridge2Fork
+            <span>🍳</span> eXpairing
           </NavLink>
           <div className="nav-links">
             <NavLink to="/feed"     className={({isActive}) => `nav-link${isActive ? ' active' : ''}`}>Recipes</NavLink>
