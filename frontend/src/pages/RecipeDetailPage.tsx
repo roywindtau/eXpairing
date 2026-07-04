@@ -8,6 +8,9 @@ import { WinePairing } from '../components/WinePairing'
 // content-based, so it isn't used here.
 interface Props { userId: number }
 
+// Food.com text is all-lowercase; capitalize the first letter of a sentence.
+const sentenceCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
 export function RecipeDetailPage(_: Props) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -42,59 +45,59 @@ export function RecipeDetailPage(_: Props) {
   )
 
   return (
-    <div className="page" style={{ maxWidth: 680 }}>
+    <div className="page" style={{ maxWidth: 690 }}>
       {/* Back */}
       <button
         className="btn btn-ghost"
-        style={{ marginBottom: 20, fontSize: 13 }}
+        style={{ marginBottom: 22, fontSize: 14 }}
         onClick={() => navigate(-1)}
       >
         ← Back
       </button>
 
       {/* Title + meta */}
-      <h1 style={{ fontSize: 27, fontWeight: 600, color: 'var(--gray-900)', marginBottom: 8, lineHeight: 1.25, fontFamily: 'var(--font-display)', letterSpacing: '-.015em' }}>
+      <h1 style={{ fontSize: 34, fontWeight: 600, color: 'var(--gray-900)', marginBottom: 11, lineHeight: 1.2, fontFamily: 'var(--font-display)', letterSpacing: '-.015em', textTransform: 'capitalize' }}>
         {recipe.name}
       </h1>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, marginBottom: 22 }}>
         {recipe.minutes && (
-          <span className="badge badge-gray" style={{ fontSize: 13 }}>⏱ {recipe.minutes} min</span>
+          <span className="badge badge-gray" style={{ fontSize: 14, padding: '5px 13px' }}>⏱ {recipe.minutes} min</span>
         )}
         {recipe.n_steps && (
-          <span className="badge badge-gray" style={{ fontSize: 13 }}>📋 {recipe.n_steps} steps</span>
+          <span className="badge badge-gray" style={{ fontSize: 14, padding: '5px 13px' }}>📋 {recipe.n_steps} steps</span>
         )}
         {recipe.avg_rating && (
-          <span className="badge badge-amber" style={{ fontSize: 13 }}>
+          <span className="badge badge-amber" style={{ fontSize: 14, padding: '5px 13px' }}>
             ★ {recipe.avg_rating.toFixed(1)}
             {recipe.n_ratings > 0 && <span style={{ fontWeight: 400, opacity: .8 }}> ({recipe.n_ratings.toLocaleString()})</span>}
           </span>
         )}
         {recipe.tags.map(t => (
-          <span key={t} className="badge badge-green" style={{ fontSize: 13 }}>{t}</span>
+          <span key={t} className="badge badge-green" style={{ fontSize: 14, padding: '5px 13px', textTransform: 'capitalize' }}>{t}</span>
         ))}
       </div>
 
       {/* Description */}
       {recipe.description && (
-        <p style={{ fontSize: 15, color: 'var(--gray-600)', lineHeight: 1.6, marginBottom: 28 }}>
-          {recipe.description}
+        <p style={{ fontSize: 16, color: 'var(--gray-600)', lineHeight: 1.7, marginBottom: 32 }}>
+          {sentenceCase(recipe.description)}
         </p>
       )}
 
       {/* Ingredients */}
-      <section style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--gray-800)', marginBottom: 12, fontFamily: 'var(--font-display)' }}>
+      <section style={{ marginBottom: 32 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 600, color: 'var(--gray-800)', marginBottom: 14, fontFamily: 'var(--font-display)' }}>
           Ingredients
         </h2>
-        <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 9 }}>
           {recipe.ingredients.map((ing, i) => (
             <li key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              fontSize: 14, color: 'var(--gray-700)',
+              display: 'flex', alignItems: 'center', gap: 11,
+              fontSize: 15, color: 'var(--gray-700)', textTransform: 'capitalize',
             }}>
               <span style={{
-                width: 6, height: 6, borderRadius: '50%',
+                width: 7, height: 7, borderRadius: '50%',
                 background: 'var(--green-500)', flexShrink: 0,
               }} />
               {ing}
@@ -106,23 +109,23 @@ export function RecipeDetailPage(_: Props) {
       {/* Steps */}
       {recipe.steps.length > 0 && (
         <section>
-          <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--gray-800)', marginBottom: 12, fontFamily: 'var(--font-display)' }}>
+          <h2 style={{ fontSize: 22, fontWeight: 600, color: 'var(--gray-800)', marginBottom: 14, fontFamily: 'var(--font-display)' }}>
             Instructions
           </h2>
-          <ol style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <ol style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 18 }}>
             {recipe.steps.map((step, i) => (
-              <li key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <li key={i} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                 <span style={{
-                  minWidth: 28, height: 28, borderRadius: '50%',
+                  minWidth: 32, height: 32, borderRadius: '50%',
                   background: 'linear-gradient(135deg, #46a54b, var(--green-600))', color: 'white',
                   boxShadow: '0 2px 6px rgba(46,125,50,.3)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13, fontWeight: 700, flexShrink: 0, marginTop: 1,
+                  fontSize: 14, fontWeight: 700, flexShrink: 0, marginTop: 1,
                 }}>
                   {i + 1}
                 </span>
-                <p style={{ fontSize: 14, color: 'var(--gray-700)', lineHeight: 1.6, margin: 0 }}>
-                  {step}
+                <p style={{ fontSize: 15, color: 'var(--gray-700)', lineHeight: 1.7, margin: 0 }}>
+                  {sentenceCase(step)}
                 </p>
               </li>
             ))}
