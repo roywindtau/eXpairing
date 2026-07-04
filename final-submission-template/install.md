@@ -84,6 +84,7 @@ python3 -m backend.ml.wine.training.train_wine_als   # Trains confidence-weighte
 python3 -m data.wine.inspect_neighbors            # Diagnostic tool to sanity-check content-based neighbor weights
 
 # --- 3. Recipe-Wine Pairing Pipeline Training ---
+python3 -m data.pairing.download_pairing             # Downloads wine_food_pairings.csv (~35k labeled wine/food pairings)
 python3 -m data.pairing.extract_pairing_rules        # Reads data/pairing/wine_food_pairings.csv → models/pairing_rules.json (empirical sommelier rules)
 python3 -m data.pairing.build_wine_pairing_vectors   # Generates models/wine_pair_matrix.npz + wine_pair_meta.json (12-dim category vectors)
 ```
