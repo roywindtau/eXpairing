@@ -47,6 +47,10 @@ function CfStrategyBanner({ strategy }: { strategy: string | null }) {
 }
 
 const PAGE_SIZE = 20
+// Size of the default, MMR-diversified feed. Matches the backend's ranked
+// pipeline (score → MMR rerank over top 3×N). The full unranked pool is only
+// requested when the user searches, where MMR ordering is irrelevant.
+const FEED_SIZE = 20
 
 export function RecipeFeedPage({ userId }: Props) {
   const [recipes,  setRecipes]  = useState<RecipeScore[]>([])
@@ -57,16 +61,19 @@ export function RecipeFeedPage({ userId }: Props) {
   const [cooked,   setCooked]   = useState<Set<number>>(new Set())
   const [sortKey,  setSortKey]  = useState<SortKey>('final_score')
   const [query,    setQuery]    = useState('')
+  const [searchMode, setSearchMode] = useState(false)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
-  const load = useCallback(async () => {
+  // The default feed requests the MMR-diversified top-N (top_n>0) so the
+  // backend's ranking → diversity rerank actually runs. Only when the user
+  // searches do we pull the full scored pool (top_n=0, no MMR) to filter over.
+  const load = useCallback(async (fullPool = false) => {
     setLoading(true)
     setError(null)
     try {
-      // top_n=0 returns the full scored candidate pool so search & "Show more"
-      // have a real pool to work over (best-fit recipes are first).
-      const data = await getRankedRecipes(userId, 0)
+      const data = await getRankedRecipes(userId, fullPool ? 0 : FEED_SIZE)
       setRecipes(data)
+      setSearchMode(fullPool)
       if (data.length > 0) setStrategy(data[0].cf_strategy)
     } catch {
       setError('Could not load recipes. Make sure the backend is running.')
@@ -76,6 +83,13 @@ export function RecipeFeedPage({ userId }: Props) {
   }, [userId])
 
   useEffect(() => { load() }, [load])
+
+  // The first non-empty search swaps the MMR feed for the full pool so there's
+  // a real catalog to filter; clearing the box restores the diversified feed.
+  useEffect(() => {
+    if (query.trim() && !searchMode) load(true)
+    else if (!query.trim() && searchMode) load(false)
+  }, [query, searchMode, load])
 
   // Reset how many cards are shown whenever the search query changes.
   useEffect(() => { setVisibleCount(PAGE_SIZE) }, [query])
@@ -114,7 +128,7 @@ export function RecipeFeedPage({ userId }: Props) {
         <div className="empty-icon">⚠️</div>
         <h3>Could not load recipes</h3>
         <p>{error}</p>
-        <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={load}>
+        <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => load()}>
           Retry
         </button>
       </div>
@@ -146,7 +160,7 @@ export function RecipeFeedPage({ userId }: Props) {
           </select>
           <button
             className="btn btn-ghost"
-            onClick={() => { setSortKey('final_score'); setSkipped(new Set()); setCooked(new Set()); load() }}
+            onClick={() => { setSortKey('final_score'); setQuery(''); setSkipped(new Set()); setCooked(new Set()); load() }}
             style={{ fontSize: 13 }}
           >
             ↻ Refresh
@@ -176,7 +190,7 @@ export function RecipeFeedPage({ userId }: Props) {
           <div className="empty-icon">🍽️</div>
           <h3>No recipes to show</h3>
           <p>Add items to your pantry to get personalized recommendations.</p>
-          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={load}>
+          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => load()}>
             Refresh
           </button>
         </div>
