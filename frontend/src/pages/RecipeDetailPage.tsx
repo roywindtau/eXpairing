@@ -53,7 +53,7 @@ export function RecipeDetailPage(_: Props) {
       </button>
 
       {/* Title + meta */}
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--gray-900)', marginBottom: 8, lineHeight: 1.25 }}>
+      <h1 style={{ fontSize: 27, fontWeight: 600, color: 'var(--gray-900)', marginBottom: 8, lineHeight: 1.25, fontFamily: 'var(--font-display)', letterSpacing: '-.015em' }}>
         {recipe.name}
       </h1>
 
@@ -84,7 +84,7 @@ export function RecipeDetailPage(_: Props) {
 
       {/* Ingredients */}
       <section style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 12 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--gray-800)', marginBottom: 12, fontFamily: 'var(--font-display)' }}>
           Ingredients
         </h2>
         <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -106,7 +106,7 @@ export function RecipeDetailPage(_: Props) {
       {/* Steps */}
       {recipe.steps.length > 0 && (
         <section>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--gray-800)', marginBottom: 12, fontFamily: 'var(--font-display)' }}>
             Instructions
           </h2>
           <ol style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -114,7 +114,8 @@ export function RecipeDetailPage(_: Props) {
               <li key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                 <span style={{
                   minWidth: 28, height: 28, borderRadius: '50%',
-                  background: 'var(--blue-500)', color: 'white',
+                  background: 'linear-gradient(135deg, #46a54b, var(--green-600))', color: 'white',
+                  boxShadow: '0 2px 6px rgba(46,125,50,.3)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 13, fontWeight: 700, flexShrink: 0, marginTop: 1,
                 }}>

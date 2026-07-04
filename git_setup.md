@@ -1,4 +1,4 @@
-# Fridge2Fork — Git & Setup Guide
+# eXpairing — Git & Setup Guide
 
 ## What lives in git / what doesn't
 
@@ -17,7 +17,7 @@
 | `train_pipeline.sh` | One-shot ML training script |
 | `docker-compose.yml`, `Dockerfile.*` | Container config |
 | `.gitignore` | This file |
-| `README.md`, `FRIDGE2FORK.md`, `algoclass.md` | Documentation |
+| `README.md`, `EXPAIRING.md`, `algoclass.md` | Documentation |
 
 ### NOT in git (regenerated or secret)
 
@@ -122,7 +122,7 @@ For a quick test with a subset:
 ```
 
 **Note:** The CF model is trained with `--no-implicit` (explicit Food.com star ratings only,
-no cook events). See `FRIDGE2FORK.md` for the reasoning.
+no cook events). See `EXPAIRING.md` for the reasoning.
 
 ---
 
@@ -181,7 +181,7 @@ Expected: 387 passed, 1 skipped (the skip is a DB-state test that needs the full
 ```bash
 cd frontend
 npx playwright test e2e/demo.spec.ts --config=playwright-demo.config.ts
-# Output: frontend/demo-video/demo-Fridge2Fork-full-feature-demo/video.webm
+# Output: frontend/demo-video/demo-eXpairing-full-feature-demo/video.webm
 ```
 
 ---

@@ -66,24 +66,24 @@ export function ProfilePage({ userId }: Props) {
   if (!profile) return <div className="spinner-wrap"><div className="spinner" /></div>
 
   return (
-    <div className="page" style={{ maxWidth: 560 }}>
-      <h1 className="page-title">Profile</h1>
+    <div className="page" style={{ maxWidth: 720 }}>
+      <h1 className="page-title" style={{ fontSize: '2rem' }}>Profile</h1>
 
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 34, padding: '2.25rem' }}>
         {/* Beta */}
         <div className="form-group">
-          <label className="form-label">Recipe suggestion style</label>
+          <label className="form-label" style={{ fontSize: 16 }}>Recipe suggestion style</label>
           <input
             type="range" min={0.05} max={0.95} step={0.05}
             value={beta}
             onChange={e => setBeta(parseFloat(e.target.value))}
             style={{ width: '100%', accentColor: 'var(--green-600)' }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--gray-400)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--gray-400)' }}>
             <span>Discover new recipes</span>
             <span>Use what I have</span>
           </div>
-          <p style={{ fontSize: 13, color: 'var(--green-700)', fontStyle: 'italic', marginTop: 4 }}>
+          <p style={{ fontSize: 15, color: 'var(--green-700)', fontStyle: 'italic', marginTop: 6 }}>
             {betaLabel}
           </p>
           <p style={{ fontSize: 12, color: 'var(--gray-400)', marginTop: 2 }}>
@@ -100,11 +100,11 @@ export function ProfilePage({ userId }: Props) {
         </div>
 
         {/* CF status + rating progress */}
-        <div style={{ padding: '14px', background: 'var(--gray-50)', borderRadius: 'var(--radius-sm)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ padding: 20, background: 'var(--surface-2)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
-              <p style={{ fontSize: 13, fontWeight: 500 }}>Personalization status</p>
-              <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 3 }}>
+              <p style={{ fontSize: 15, fontWeight: 600 }}>Personalization status</p>
+              <p style={{ fontSize: 13.5, color: 'var(--gray-500)', marginTop: 4 }}>
                 {stats?.is_warm
                   ? 'Full CF active — recommendations use your rating history.'
                   : `Cold start mode — rate ${(stats?.ratings_for_warm_cf ?? 5) - (stats?.n_ratings ?? 0)} more recipes to unlock full personalization.`}
@@ -134,36 +134,36 @@ export function ProfilePage({ userId }: Props) {
             </div>
           )}
           {stats && (
-            <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
-              <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>🍳 {stats.n_cooked} cooked</span>
-              <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>★ {stats.n_ratings} rated</span>
+            <div style={{ display: 'flex', gap: 20, marginTop: 14 }}>
+              <span style={{ fontSize: 14, color: 'var(--gray-500)' }}>🍳 {stats.n_cooked} cooked</span>
+              <span style={{ fontSize: 14, color: 'var(--gray-500)' }}>★ {stats.n_ratings} rated</span>
             </div>
           )}
         </div>
 
         {/* Diet tags */}
         <div className="form-group">
-          <label className="form-label">Dietary preferences</label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+          <label className="form-label" style={{ fontSize: 16 }}>Dietary preferences</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 6 }}>
             {DIET_OPTIONS.map(tag => (
               <button key={tag} onClick={() => toggleTag(tag)}
                 className={`badge ${dietTags.includes(tag) ? 'badge-green' : 'badge-gray'}`}
                 style={{
-                  cursor: 'pointer',
+                  cursor: 'pointer', fontSize: 14,
                   border: dietTags.includes(tag) ? '1px solid var(--green-500)' : '1px solid var(--gray-200)',
-                  padding: '5px 12px', transition: 'all .15s',
+                  padding: '8px 16px', transition: 'all .15s',
                 }}>
                 {tag}
               </button>
             ))}
           </div>
-          <p style={{ fontSize: 12, color: 'var(--gray-400)', marginTop: 6 }}>
+          <p style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 8 }}>
             Used to filter and seed cold-start recommendations.
           </p>
         </div>
 
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}
-          style={{ alignSelf: 'flex-start' }}>
+          style={{ alignSelf: 'flex-start', fontSize: 15, padding: '10px 22px' }}>
           {saved ? '✓ Saved' : saving ? 'Saving…' : 'Save changes'}
         </button>
       </div>

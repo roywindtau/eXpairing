@@ -115,8 +115,8 @@ export function IngredientAutocomplete({ value, onChange, onEnter, placeholder }
             zIndex: 200, margin: 0, padding: 0, listStyle: 'none',
             background: 'white',
             border: '1px solid var(--gray-200)',
-            borderRadius: 4,
-            boxShadow: '0 4px 12px rgba(0,0,0,.08)',
+            borderRadius: 10,
+            boxShadow: 'var(--shadow-md)',
             maxHeight: 220, overflowY: 'auto',
           }}
         >
@@ -130,8 +130,8 @@ export function IngredientAutocomplete({ value, onChange, onEnter, placeholder }
                 padding: '7px 12px',
                 fontSize: 13,
                 cursor: 'pointer',
-                background: i === activeIndex ? 'var(--blue-50)' : 'transparent',
-                color: i === activeIndex ? 'var(--blue-600)' : 'var(--gray-800)',
+                background: i === activeIndex ? 'var(--green-50)' : 'transparent',
+                color: i === activeIndex ? 'var(--green-700)' : 'var(--gray-800)',
                 borderBottom: i < suggestions.length - 1 ? '1px solid var(--gray-100)' : 'none',
               }}
             >

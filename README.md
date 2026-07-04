@@ -1,4 +1,4 @@
-# Fridge2Fork
+# eXpairing
 
 A recipe recommender system that ranks recipes to minimize food waste,
 personalized to what's expiring in your fridge and how you cook.
@@ -514,7 +514,7 @@ tests/
                                — CF cold/warm, pantry effect, beta, vision
 
 frontend/e2e/
-  fridge2fork.spec.ts        Playwright E2E: 63 tests across all pages
+  expairing.spec.ts        Playwright E2E: 63 tests across all pages
   demo.spec.ts               Full feature demo recording script
 
 data/

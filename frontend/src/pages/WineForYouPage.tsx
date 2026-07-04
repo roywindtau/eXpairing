@@ -91,7 +91,7 @@ export function WineForYouPage({ userId }: Props) {
       className="btn btn-primary"
       onClick={suggest}
       disabled={loading}
-      style={{ fontSize: 15, padding: '10px 22px' }}
+      style={{ fontSize: 19, padding: '17px 38px', borderRadius: 14 }}
     >
       🍷 {loading ? 'Finding wines…' : label}
     </button>
@@ -100,11 +100,11 @@ export function WineForYouPage({ userId }: Props) {
   // Fruit chips — cold-start onboarding. Picks are inferred into a wine taste
   // profile on the backend and seed recommendations until the user rates wines.
   const FruitPicker = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 18 }}>
-      <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 36 }}>
+      <span style={{ fontSize: 16, color: 'var(--gray-600)', fontWeight: 600 }}>
         Fruits you enjoy {fruits.size === 0 && '(helps us start)'}
       </span>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 460 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center', maxWidth: 640 }}>
         {FRUIT_OPTIONS.map(f => {
           const on = fruits.has(f)
           return (
@@ -112,14 +112,14 @@ export function WineForYouPage({ userId }: Props) {
               key={f}
               type="button"
               onClick={() => toggleFruit(f)}
-              className="badge"
+              className={`badge pill${on ? ' is-on' : ''}`}
               style={{
-                cursor: 'pointer', fontSize: 12, padding: '4px 10px',
+                fontSize: 17, padding: '12px 22px', gap: '.5rem',
                 textTransform: 'capitalize',
-                background: on ? 'var(--purple-600, #7c3aed)' : 'var(--gray-50, #f7f7f8)',
+                background: on ? 'var(--purple-600, #7c3aed)' : 'var(--surface)',
                 color: on ? '#fff' : 'var(--gray-700)',
-                border: `1px solid ${on ? 'var(--purple-600, #7c3aed)' : 'var(--gray-200, #e5e7eb)'}`,
-                fontWeight: on ? 600 : 400,
+                border: `1px solid ${on ? 'var(--purple-600, #7c3aed)' : 'var(--gray-300)'}`,
+                fontWeight: on ? 600 : 500,
               }}
             >
               {FRUIT_EMOJI[f] ?? '🍇'} {on ? '✓ ' : ''}{f}
@@ -132,11 +132,11 @@ export function WineForYouPage({ userId }: Props) {
 
   // Style chips — toggle which styles to generate. Empty = "styles you drink".
   const StylePicker = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 18 }}>
-      <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 36 }}>
+      <span style={{ fontSize: 16, color: 'var(--gray-600)', fontWeight: 600 }}>
         Styles {styles.size === 0 && '(all you drink)'}
       </span>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
         {STYLE_OPTIONS.map(s => {
           const on = styles.has(s)
           const c = STYLE_COLORS[s]
@@ -145,14 +145,14 @@ export function WineForYouPage({ userId }: Props) {
               key={s}
               type="button"
               onClick={() => toggleStyle(s)}
-              className="badge"
+              className={`badge pill${on ? ' is-on' : ''}`}
               style={{
-                cursor: 'pointer', fontSize: 12, padding: '4px 10px',
+                fontSize: 17, padding: '12px 24px', gap: '.5rem',
                 // selected: filled with the style's accent; idle: soft wash
                 background: on ? c.accent : c.bg,
                 color: on ? '#fff' : 'var(--gray-700)',
                 border: `1px solid ${c.accent}`,
-                fontWeight: on ? 600 : 400,
+                fontWeight: on ? 600 : 500,
               }}
             >
               {on ? '✓ ' : ''}{s}
@@ -179,10 +179,10 @@ export function WineForYouPage({ userId }: Props) {
 
       {/* Initial state — the call to action */}
       {!hasAsked && (
-        <div className="empty" style={{ paddingTop: 48 }}>
-          <div className="empty-icon">🥂</div>
-          <h3>Not sure what to drink?</h3>
-          <p style={{ marginBottom: 20 }}>
+        <div className="empty" style={{ paddingTop: 40 }}>
+          <div className="empty-icon" style={{ width: 112, height: 112, fontSize: '3.1rem', marginBottom: '1.6rem' }}>🥂</div>
+          <h3 style={{ fontSize: '2rem' }}>Not sure what to drink?</h3>
+          <p style={{ marginBottom: 40, fontSize: '1.15rem', maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
             {onboarded
               ? "Pick the styles you're after, or just hit suggest."
               : "New here? Tell us which fruits you enjoy and we'll start your picks. They sharpen as you rate wines."}
@@ -230,8 +230,8 @@ export function WineForYouPage({ userId }: Props) {
           <>
             <StylePicker />
             <p style={{
-              fontSize: 12, color: 'var(--gray-400)', margin: '0 0 12px',
-              fontWeight: 500,
+              fontSize: 11, color: 'var(--gray-500)', margin: '0 0 12px',
+              fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em',
             }}>
               Picked for you
             </p>

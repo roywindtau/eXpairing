@@ -41,7 +41,7 @@ export function WinePairing({ recipeId, topN = 5 }: Props) {
   return (
     <section style={{ marginBottom: 28 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', margin: 0 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--gray-800)', margin: 0, fontFamily: 'var(--font-display)' }}>
           🍷 Wine pairing
         </h2>
         {!pairs && !unavailable && (
@@ -77,8 +77,9 @@ export function WinePairing({ recipeId, topN = 5 }: Props) {
           {pairs.map(w => (
             <li key={w.wine_id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              gap: 12, padding: '10px 14px', borderRadius: 10,
-              border: '1px solid var(--gray-200)', background: 'var(--gray-50, #fafafa)',
+              gap: 12, padding: '11px 14px', borderRadius: 12,
+              border: '1px solid var(--gray-200)', background: 'var(--surface, #fff)',
+              borderLeft: '3px solid var(--amber-400)', boxShadow: 'var(--shadow-sm)',
             }}>
               <div style={{ minWidth: 0 }}>
                 {/* menu-style title: Producer — Wine name */}

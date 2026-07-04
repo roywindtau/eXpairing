@@ -20,8 +20,8 @@ function daysUntil(iso: string): number {
 
 function rowBg(iso: string): string {
   const d = daysUntil(iso)
-  if (d < 0) return 'var(--red-50)'
-  if (d <= 3) return '#fff5f5'
+  if (d < 0) return 'var(--red-100)'
+  if (d <= 3) return 'var(--red-50)'
   if (d <= 7) return 'var(--amber-50)'
   return 'transparent'
 }
@@ -81,11 +81,11 @@ export function PantryPage({ userId }: Props) {
 
   return (
     <div className="page">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>My Pantry</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
+        <h1 className="page-title" style={{ margin: 0, fontSize: '2rem' }}>My Pantry</h1>
+        <div style={{ display: 'flex', gap: 10 }}>
           <VisionScanner userId={userId} onConfirmed={load} demoMode={import.meta.env.VITE_VISION_DEMO === 'true'} />
-          <button className="btn btn-primary" onClick={() => setAdding(a => !a)}>
+          <button className="btn btn-primary" onClick={() => setAdding(a => !a)} style={{ fontSize: 15, padding: '11px 22px' }}>
             {adding ? '✕ Cancel' : '+ Add item'}
           </button>
         </div>
@@ -94,7 +94,7 @@ export function PantryPage({ userId }: Props) {
       {/* Add form */}
       {adding && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Add pantry item</h3>
+          <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Add pantry item</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div className="form-group">
               <label className="form-label">Ingredient *</label>
@@ -128,10 +128,10 @@ export function PantryPage({ userId }: Props) {
         const expiring = items.filter(i => daysUntil(i.expiry_date) <= 3).length
         const expired  = items.filter(i => daysUntil(i.expiry_date) < 0).length
         return (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            <span className="badge badge-gray">{items.length} items</span>
-            {expiring > 0 && <span className="badge badge-red">⚠ {expiring} expiring soon</span>}
-            {expired  > 0 && <span className="badge badge-red">✕ {expired} expired</span>}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+            <span className="badge badge-gray" style={{ fontSize: 14, padding: '6px 14px' }}>{items.length} items</span>
+            {expiring > 0 && <span className="badge badge-red" style={{ fontSize: 14, padding: '6px 14px' }}>⚠ {expiring} expiring soon</span>}
+            {expired  > 0 && <span className="badge badge-red" style={{ fontSize: 14, padding: '6px 14px' }}>✕ {expired} expired</span>}
           </div>
         )
       })()}
@@ -148,21 +148,21 @@ export function PantryPage({ userId }: Props) {
           {items.map((item, i) => (
             <div key={item.id}
               style={{
-                display: 'flex', alignItems: 'center', gap: 14,
-                padding: '12px 18px',
+                display: 'flex', alignItems: 'center', gap: 18,
+                padding: '22px 26px',
                 background: rowBg(item.expiry_date),
                 borderBottom: i < items.length - 1 ? '1px solid var(--gray-100)' : 'none',
               }}>
               <div style={{ flex: 1 }}>
-                <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{item.ingredient}</span>
+                <span style={{ fontWeight: 600, fontSize: 18, textTransform: 'capitalize' }}>{item.ingredient}</span>
                 {item.quantity && (
-                  <span style={{ fontSize: 13, color: 'var(--gray-400)', marginLeft: 8 }}>{item.quantity}</span>
+                  <span style={{ fontSize: 15, color: 'var(--gray-400)', marginLeft: 12 }}>{item.quantity}</span>
                 )}
               </div>
               <ExpiryBadge expiryDate={item.expiry_date} showBar />
               <button
                 className="btn btn-danger"
-                style={{ padding: '4px 10px', fontSize: 13 }}
+                style={{ padding: '9px 18px', fontSize: 15 }}
                 onClick={() => handleDelete(item)}
               >
                 Remove

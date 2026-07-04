@@ -1,7 +1,7 @@
 """
 tests/test_ml_behavior.py
 --------------------------
-Behavioral integration tests for the Fridge2Fork recommender system.
+Behavioral integration tests for the eXpairing recommender system.
 
 These tests hit the live backend at localhost:8000 and verify that the
 ML pipeline behaves correctly at each stage of user progression:

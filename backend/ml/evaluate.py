@@ -1,7 +1,7 @@
 """
 evaluate.py
 -----------
-Offline evaluation of the Fridge2Fork recommender system.
+Offline evaluation of the eXpairing recommender system.
 
 PREDICTION TARGET
 -----------------
@@ -664,7 +664,7 @@ def run(
     tune: bool = False,
 ) -> dict:
     print("=" * 55)
-    print("  Fridge2Fork — Offline Evaluation")
+    print("  eXpairing — Offline Evaluation")
     print("=" * 55)
 
     # Load or synthesise ratings

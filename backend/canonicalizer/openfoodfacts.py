@@ -49,7 +49,7 @@ _SEARCH_EP  = _BASE + "/cgi/search.pl"
 
 # Polite User-Agent as requested by OFF
 _HEADERS = {
-    "User-Agent": "Fridge2Fork/1.0 (github.com/fridge2fork; educational project)",
+    "User-Agent": "eXpairing/1.0 (github.com/expairing; educational project)",
 }
 
 # Disk cache for barcode lookups
