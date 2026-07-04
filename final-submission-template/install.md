@@ -41,18 +41,18 @@ cd ..
 ### Step 3 — Seed Database & Model Artifacts (Choose Option A or Option B)
 
 #### Option A: Quick Start (Local Demo, No Kaggle API needed)
-Seeds the SQLite database (`fridge2fork.db`) with 20 diverse dev recipes, a demo pantry, and initial wine catalog statistics.
+Seeds the SQLite database (`fridge2fork.db`) with 20 diverse dev recipes, a demo pantry, and a 100-wine demo catalog.
 ```bash
 # Seed dev recipe database
 python3 -m backend.db.seed_dev
 
-# Seed and initialize drinks/wine module tables
-./data/wine/clean_and_seed.sh
-# Alternatively, execute wine seeding steps individually:
-# python3 -m backend.db.reset_wines
-# python3 -m backend.db.wine.seed_wines
-# python3 -m backend.db.wine.compute_wine_stats   # Aggregates 21M ratings to populate popularity prior
+# Create wine tables and seed the committed 100-wine sample catalog
+# (data/wine/clean_wines.sample.csv — ships with popularity stats baked in,
+# so no dataset download and no stats computation is needed)
+python3 -m backend.db.reset_wines
+python3 -m backend.db.wine.seed_wines
 ```
+*Note*: `./data/wine/clean_and_seed.sh` and `compute_wine_stats` require the raw X-Wines download — they belong to Option B, not the quick start.
 
 #### Option B: Full Dataset Pipeline & Offline ML Training
 For training production models on 231k recipes (Food.com) and 100k wines / 21M ratings (X-Wines):
@@ -71,12 +71,16 @@ python3 -m backend.ml.train_cb                    # Trains models/cb_matrix.npz 
 python3 -m backend.ml.evaluate                    # Evaluates RMSE, Precision@K, NDCG@K → models/eval_results.json
 
 # --- 2. Drinks & Wine Pipeline Training ---
-python3 -m data.download_wines               # Downloads X-Wines raw corpus
+python3 -m data.wine.download_wines               # Downloads X-Wines raw corpus
 python3 -m data.wine.clean_wines                  # Generates clean_wines.csv & clean_ratings.csv
+python3 -m backend.db.reset_wines                 # Recreates wine tables
+python3 -m backend.db.wine.seed_wines             # Seeds the full 100k-wine catalog into the DB (training scripts below read wines from the DB)
+python3 -m backend.db.wine.compute_wine_stats     # Aggregates 21M ratings → popularity prior
 python3 -m data.wine.region_rollup                # Collapses 2,160 appellations → 107 parent regions (models/region_rollup.json)
 python3 -m backend.ml.wine.training.train_cb      # Generates models/wine_cb_matrix.npz (structured content-based matrix)
 python3 -m backend.ml.wine.training.build_wine_split # Creates frozen leave-5-out evaluation split in models/wine_split/
-python3 -m backend.ml.wine.training.train_wine_als   # Trains confidence-weighted ALS model (models/wine_als_model.npz)
+python3 -m backend.ml.wine.training.eval_wine_popularity # Popularity ranking baseline (the floor ALS must beat, NDCG@10 ≈ 0.0071)
+python3 -m backend.ml.wine.training.train_wine_als   # Trains confidence-weighted ALS model (models/wine_als_model.npz) and evaluates it on the frozen split
 python3 -m data.wine.inspect_neighbors            # Diagnostic tool to sanity-check content-based neighbor weights
 
 # --- 3. Recipe-Wine Pairing Pipeline Training ---
@@ -161,6 +165,6 @@ npx playwright test --reporter=list
 ## Troubleshooting
 
 * **Port Conflicts (8000 or 5173 already in use)**: Verify no orphaned `uvicorn` or `vite` processes are running. Kill running background processes on port 8000 or 5173 before launching.
-* **Flat Wine Popularity Scores**: If wine recommendations return identical popularity scores, ensure `python3 -m backend.db.wine.compute_wine_stats` was executed during seeding to aggregate ratings and populate popularity priors.
+* **Flat Wine Popularity Scores**: If wine recommendations return identical popularity scores after a full-dataset seed (Option B), ensure `python3 -m backend.db.wine.compute_wine_stats` was executed to aggregate ratings into the popularity prior. (The Option A sample catalog ships with popularity stats pre-computed, so this step does not apply there.)
 * **Missing AI Vision Tokens**: If neither `OPENAI_API_KEY` nor `GEMINI_API_KEY` is configured, the `/vision/scan` endpoint will raise a runtime error if called directly, but the UI demo scanner invokes `/vision/mock` automatically. Set an API token in `.env` for real photo processing.
 * **SQLite Database Lock Errors**: SQLite locks the database file during write operations. Restart uvicorn processes or execute `python3 -m backend.db.seed_dev` to reset state if locks persist.
