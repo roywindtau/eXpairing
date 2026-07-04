@@ -21,6 +21,7 @@ Traditional recommender systems and recipe platforms ask: *"What sounds good to 
 
 - **Food.com Recipes and User Interactions** — Primary dataset for the recipe recommender, [Kaggle Dataset](https://www.kaggle.com/datasets/shuyangli94/food-com-recipes-and-user-interactions). Contains 231,637 recipes, 1,132,367 user reviews/ratings (1–5 explicit stars), ingredient tokens, tags, cooking minutes, and step-by-step instructions.
 - **X-Wines Dataset (Full)** — Primary dataset for the drinks/wine recommender, [GitHub Repository](https://github.com/rogerioxavier/X-Wines). Contains 100,646 wines and 21 million user ratings, along with structured metadata (grapes, 2,160 appellations, body, acidity, alcohol content).
+- **Wine and Food Pairing Dataset** — Training input for the recipe-wine pairing engine, [Kaggle Dataset](https://www.kaggle.com/datasets/wafaaelhusseini/wine-and-food-pairing-dataset). ~35K rows, each labeling a (wine category × food category) combination with a 1-5 pairing-quality score. Signal analysis (`data/pairing/check_ingredient_signal.py`) showed the labels are category-level rule-generated, so we extract the underlying rule table directly — per-cell mean quality with injected contrast rows dropped (`data/pairing/extract_pairing_rules.py` → `models/pairing_rules.json`) — rather than fit a model to ingredient-level noise.
 
 Additional data-related information:
 - **Canonicalization & Entity Resolution**: Engineered a rule-based canonicalizer (`backend/canonicalizer/ingredient_map.py`) and integrated OpenFoodFacts API to resolve real-world store item names into Food.com canonical vocabulary tokens (e.g. mapping brand variants like "Tnuva 3% Milk" to canonical "milk", and synonyms like "aubergine" to "eggplant").
@@ -34,7 +35,7 @@ Additional data-related information:
 ### Frontend
 - **React 18 & TypeScript** — component-based single-page application with static type safety.
 - **Vite** — frontend build tool and hot-reloading development server.
-- **TailwindCSS & CSS Modules** — custom styling, score ring graphics, and responsive layouts.
+- **CSS Modules & Custom Properties** — custom styling, score ring graphics, and responsive layouts.
 - **Axios** — HTTP client for asynchronous REST API communication (`client.ts` and `wine.ts`).
 - **Playwright** — end-to-end browser testing and automated presentation recording (63 tests).
 
@@ -168,7 +169,7 @@ The system is designed with a decoupled three-layer architecture: a React TypeSc
 5. **MMR Reranking & Feedback Loop**: Top 60 candidates pass through MMR diversity reranking (λ=0.7) using ingredient Jaccard similarity. Top 20 recipes returned to UI with complete score breakdowns. User actions (`cook`, `rate`, `skip`) are saved to SQLite, feeding synthetic rating generators (`max(3.0, 4.0 - n_missing*0.3)`) and daily preference updates (`β`).
 
 **System Flow (Request Lifecycle for `GET /wine/ranked` & `POST /wine/pair`):**
-1. **Personalized Wine Feed (`GET /wine/ranked`)**: Applies hard style filters and checks user rating counts. *Cold start* (0 ratings) → Bayesian popularity prior. *Warming* (1-4 ratings) → Content-based taste profile + popularity. *Warm* (≥5 ratings) → `0.5·ALS_CF + 0.5·CB` min-max calibrated. Active app users are folded in dynamically by solving online ALS user updates (`C = 1 + 5·rating`) against frozen item factors.
+1. **Personalized Wine Feed (`GET /wine/ranked`)**: Applies hard style filters and checks user rating counts. *Cold start* (0 ratings) → Bayesian popularity prior. *Warming* (1-4 ratings) → Content-based taste profile + popularity. *Warm* (≥5 ratings) → `0.45·ALS_CF + 0.45·CB + 0.10·popularity` min-max calibrated. Active app users are folded in dynamically by solving online ALS user updates (`C = 1 + 5·rating`) against frozen item factors.
 2. **Automated Recipe-Wine Pairing (`POST /wine/pair`)**: Accepts a `recipe_id`, converts its ingredients to a 12-dim food category vector, and ranks wines by combining category cosine similarity (`ALPHA_COSINE=0.6`) with empirical sommelier pairing rules (`BETA_RULES=0.4`), applying MMR reranking for bottle diversity.
 
 ## Development Environment
@@ -196,7 +197,9 @@ The system is designed with a decoupled three-layer architecture: a React TypeSc
 
 Recommendation quality was evaluated through offline metrics, algorithm bake-offs, lifecycle simulations, hyperparameter grid searches, and automated test coverage:
 
-- **Algorithm Bake-Off (Wine CF - ALS vs Funk SVD)**: Evaluated on a frozen leave-5-out split (`models/wine_split/`). Funk SVD achieved strong rating RMSE (0.596) but failed at ranking (NDCG@10 ~0.0006 ≈ random). Confidence-weighted ALS (alpha=5) achieved NDCG@10 of **0.0291** (4× popularity baseline of 0.0071), proving that for ranking tasks without explicit rating goals, ALS is the superior objective.
+- **Algorithm Bake-Off (Wine CF - ALS vs Funk SVD)**: Evaluated on a frozen leave-5-out split (`models/wine_split/`, 16.2M train / 4.4M test ratings). Funk SVD achieved strong rating RMSE (0.596) but failed at ranking (NDCG@10 ~0.0006 ≈ random). Confidence-weighted ALS (alpha=5) achieved NDCG@10 of **0.0291** (4× popularity baseline of 0.0071), proving that for ranking tasks without explicit rating goals, ALS is the superior objective.
+- **Wine ALS Hyperparameter Experiments** (all on the same frozen split): swept confidence scale alpha over {1, 5, 15, 40} — **alpha=5 won** (0.0291, +10% over the library-default 40, which over-saturated confidence); factors {64, 128, 200} × regularization {0.01, 0.05, 0.1} was flat at factors=64; alternative matrix weightings TF-IDF (~linear, noise-level difference) and BM25 (**collapsed, −75%** — default saturation far too aggressive for this data) confirmed linear alpha=5 as the practical pure-CF ceiling.
+- **ALS Fold-In Validation (App Users)**: App users are not in the offline ALS factors, so serving folds them in by solving the ALS user update against frozen item factors. Validated via leave-one-out over 200 real users: held-out wines ranked at a **0.92 mean percentile** (median 0.978, 70% inside the top 5%) — confirming the fold-in produces genuinely personalized rankings, not popularity echoes.
 - **Offline Recipe Rating Accuracy**: Evaluated on held-out Food.com test sets. Biased Funk SVD achieved an RMSE of **0.6136** (vs global mean RMSE baseline of 1.12), representing a 45% error reduction.
 - **Cold-to-Warm Lifecycle Simulation**: Conducted simulated user lifecycle testing (`evaluate.py --lifecycle`) across interaction steps (0 to 10 ratings) to verify that the soft CF blend transition ramps smoothly without scoring discontinuities.
 - **Weight Grid Search**: Executed grid search over weight combinations of γ (CF) and α (expiry) to validate default weights (γ=0.35, α=0.35, β=0.20, δ=0.10).
@@ -217,6 +220,8 @@ Recommendation quality was evaluated through offline metrics, algorithm bake-off
 
 - **Offline CF Retraining Schedule**: Matrix factorization weights are currently trained offline on static Food.com and X-Wines ratings. While in-app ratings and cook events are captured in SQLite, updating latent vectors requires triggering an offline retraining script. A scheduled background retraining pipeline is planned.
 - **Sub-Millisecond Candidate Retrieval**: Candidate generation currently uses database indexing and popularity caps in SQLite. Migrating to vector search engines (such as FAISS or Qdrant) would allow sub-millisecond similarity queries across millions of items.
+- **Noisy Grape Labels (X-Wines)**: Grape variety tags in X-Wines are noisy (e.g. a Cabernet blend tagged "Pinot Noir"), which affects the grape block of the wine content vector and any grape-based UI text. The sommelier weighting deliberately keeps the grape block small (~5%), limiting the impact.
+- **Untested CF Lever — Positive-Rating Cut**: Dropping ratings <4 from the ALS confidence matrix (so disliked wines stop acting as weak positives) is the one identified pure-CF lever left untested; it could push NDCG@10 past the current 0.0291 ceiling.
 
 &nbsp;<br>
 

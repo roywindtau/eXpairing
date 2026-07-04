@@ -32,6 +32,9 @@ data/wine/*.csv
 # ...but keep the small committed sample so the wine demo seeds on a fresh clone
 !data/wine/clean_wines.sample.csv
 
+# Wine-food pairing dataset (download via data/pairing/download_pairing.py)
+data/pairing/wine_food_pairings.csv
+
 # Frontend
 frontend/node_modules/
 frontend/dist/

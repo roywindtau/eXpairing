@@ -69,7 +69,7 @@ This document details the architectural modules of exPairing across both the **R
 - Responsibilities: Powers the personalized "Suggest me a wine" feature by blending collaborative filtering (confidence-weighted ALS trained on 21M X-Wines ratings) and structured content-based attribute matching (grape multi-hot, parent region rollup, body, acidity, abv) with a Bayesian popularity prior.
 - Interactions: 
   - Exposes endpoints `/wine/ranked` and `/wine-events`.
-  - Evaluates cold (0 ratings → popularity), warming (1-4 ratings → CB + popularity), and warm (≥5 ratings → 0.5·CF + 0.5·CB min-max calibrated) user states.
+  - Evaluates cold (0 ratings → popularity), warming (1-4 ratings → CB + popularity), and warm (≥5 ratings → 0.45·CF + 0.45·CB + 0.10·popularity min-max calibrated) user states.
 - More info: Incorporates sommelier palate-first priors where structural attributes (body + acidity ~74% weight) guide content similarity. Folds in active app users at runtime via online ALS solver updates.
 - Source code: [`/backend/routers/wine.py`](../backend/routers/wine.py), [`/backend/services/wine/scoring.py`](../backend/services/wine/scoring.py), & [`/backend/ml/wine/serving/`](../backend/ml/wine/serving/)
 
