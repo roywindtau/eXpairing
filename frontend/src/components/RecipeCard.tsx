@@ -18,6 +18,25 @@ interface Props {
   onSkipped?: () => void
 }
 
+// Recipe names arrive lower-cased from the dataset ("kentucky hot browns").
+// Present them in Title Case, leaving short joiner words lowercase.
+const SMALL_WORDS = new Set(['a', 'an', 'and', 'the', 'of', 'or', 'in', 'on', 'with', 'to', 'for', 'ii', 'iii'])
+function titleCase(name: string): string {
+  // The dataset strips apostrophes, so possessives arrive as a lone "s"
+  // ("sizzler s cheese toast"). Re-attach it as "'s" before title-casing.
+  const cleaned = name.trim().replace(/\b(\w+) s\b/gi, "$1's")
+  const words = cleaned.split(/\s+/)
+  return words
+    .map((w, i) => {
+      const lower = w.toLowerCase()
+      if (lower === 'ii')  return 'II'
+      if (lower === 'iii') return 'III'
+      if (i > 0 && i < words.length - 1 && SMALL_WORDS.has(lower)) return lower
+      return w.charAt(0).toUpperCase() + w.slice(1)
+    })
+    .join(' ')
+}
+
 // ── star rating input ──────────────────────────────────────────────────────
 // Renders 5 clickable stars. Hover previews, click confirms.
 // This generates event_type=rate which feeds SVD training.
@@ -176,105 +195,121 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
     )
   }
 
-  return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+  const matchPct = Math.round(recipe.match_ratio * 100)
+  const missingCount = recipe.missing_ingredients.length
 
-      {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }}>
-            <Link
-              to={`/recipe/${recipe.recipe_id}`}
-              style={{
-                color: 'var(--gray-900)', textDecoration: 'none',
-                overflow: 'hidden', display: '-webkit-box',
-                WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--blue-600)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--gray-900)')}
-            >
-              {recipe.recipe_name}
-            </Link>
-          </h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {recipe.minutes && (
-              <span className="badge badge-gray">⏱ {recipe.minutes}m</span>
-            )}
-            {recipe.avg_rating && (
-              <span className="badge badge-amber">★ {recipe.avg_rating.toFixed(1)}</span>
-            )}
-            {recipe.tags.slice(0, 4).map(t => (
-              <span key={t} className="badge badge-green">{t}</span>
-            ))}
-          </div>
-        </div>
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 0, padding: '1.5rem 1.5rem 1.25rem' }}>
+
+      {/* Title */}
+      <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 12, lineHeight: 1.25 }}>
+        <Link
+          to={`/recipe/${recipe.recipe_id}`}
+          style={{
+            color: 'var(--gray-900)', textDecoration: 'none',
+            overflow: 'hidden', display: '-webkit-box',
+            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--green-700)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--gray-900)')}
+        >
+          {titleCase(recipe.recipe_name)}
+        </Link>
+      </h3>
+
+      {/* One quiet meta line: score · time · rating · pantry match */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, fontSize: 13, color: 'var(--gray-500)' }}>
+        <span style={{ color: 'var(--green-700)', fontWeight: 600 }}>
+          {Math.round(recipe.final_score * 100)}% match
+        </span>
+        {!!recipe.minutes  && <span>⏱ {recipe.minutes}m</span>}
+        {!!recipe.avg_rating && <span style={{ color: 'var(--amber-600)' }}>★ {recipe.avg_rating.toFixed(1)}</span>}
+        <span style={{ color: missingCount === 0 ? 'var(--green-700)' : 'var(--gray-500)', fontWeight: missingCount === 0 ? 600 : 400 }}>
+          {missingCount === 0 ? '✓ Have everything' : `${matchPct}% in pantry`}
+        </span>
       </div>
 
-      {/* Missing ingredients */}
-      {recipe.missing_ingredients.length > 0 ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-          <p style={{ fontSize: 12, color: 'var(--gray-500)', margin: 0 }}>
-            Need: {recipe.missing_ingredients.slice(0, 3).join(', ')}
-            {recipe.missing_ingredients.length > 3 && ` +${recipe.missing_ingredients.length - 3} more`}
-          </p>
-          {phase === 'idle' && (
-            <button
-              onClick={handleAddToList}
-              disabled={listStatus === 'adding'}
-              style={{
-                fontSize: 11, padding: '2px 7px',
-                background: listStatus === 'added' ? 'var(--green-50)'
-                          : listStatus === 'duplicate' ? 'var(--gray-50)' : 'none',
-                border: `1px solid ${
-                  listStatus === 'added' ? 'var(--green-200)'
-                  : listStatus === 'duplicate' ? 'var(--gray-200)' : 'var(--gray-200)'}`,
-                borderRadius: 4, cursor: listStatus === 'idle' ? 'pointer' : 'default',
-                color: listStatus === 'added' ? 'var(--green-700)'
-                     : listStatus === 'duplicate' ? 'var(--gray-400)' : 'var(--gray-500)',
-                whiteSpace: 'nowrap', lineHeight: '18px',
-              }}
-            >
-              {listStatus === 'added'     ? '✓ Added to list'
-               : listStatus === 'duplicate' ? 'Already in list'
-               : listStatus === 'adding'    ? '…'
-               : '＋ Buy missing'}
-            </button>
-          )}
+      {/* Buy missing — surfaced in the body when ingredients are short */}
+      {phase === 'idle' && missingCount > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>
+            Need {missingCount} item{missingCount > 1 ? 's' : ''}
+          </span>
+          <button
+            onClick={handleAddToList}
+            disabled={listStatus === 'adding'}
+            style={{
+              fontSize: 11, padding: '3px 10px',
+              background: listStatus === 'added' ? 'var(--green-50)'
+                        : listStatus === 'duplicate' ? 'var(--gray-50)' : 'none',
+              border: `1px solid ${listStatus === 'added' ? 'var(--green-200)' : 'var(--gray-200)'}`,
+              borderRadius: 999, cursor: listStatus === 'idle' ? 'pointer' : 'default',
+              color: listStatus === 'added' ? 'var(--green-700)'
+                   : listStatus === 'duplicate' ? 'var(--gray-400)' : 'var(--gray-600)',
+              whiteSpace: 'nowrap', lineHeight: '18px', fontWeight: 500,
+            }}
+          >
+            {listStatus === 'added'      ? '✓ Added to list'
+             : listStatus === 'duplicate' ? 'Already in list'
+             : listStatus === 'adding'    ? '…'
+             : '＋ Buy missing'}
+          </button>
         </div>
-      ) : (
-        <p style={{ fontSize: 12, color: 'var(--green-600)', fontWeight: 500, marginBottom: 10 }}>
-          ✓ You have everything!
-        </p>
       )}
 
-      {/* Expanders: ingredients + personal fit */}
-      <div style={{ display: 'flex', gap: 16 }}>
-        <button
-          onClick={() => setShowIngredients(s => !s)}
-          style={{
-            fontSize: 12, color: 'var(--blue-600)', background: 'none', border: 'none',
-            textAlign: 'left', padding: 0,
-          }}
-        >
-          {showIngredients ? '▲ Hide ingredients' : '▼ Ingredients'}
-        </button>
+      {/* Primary actions */}
+      {phase === 'idle' && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn btn-primary"
+            style={{ fontSize: 13, padding: '.4rem .9rem' }}
+            onClick={handleCook}
+            disabled={submitting}
+          >
+            {submitting ? '…' : '✓ Cook this'}
+          </button>
+          <button className="btn btn-ghost" style={{ fontSize: 13, padding: '.4rem .9rem' }} onClick={handleSkip}>
+            Skip
+          </button>
+        </div>
+      )}
+
+      {/* Details — everything secondary lives behind one quiet toggle */}
+      {phase === 'idle' && (
         <button
           onClick={() => setExpanded(e => !e)}
           style={{
-            fontSize: 12, color: 'var(--blue-600)', background: 'none', border: 'none',
-            textAlign: 'left', padding: 0,
+            fontSize: 12, fontWeight: 500, color: 'var(--gray-400)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            textAlign: 'center', padding: '10px 0 0', marginTop: 4,
           }}
         >
-          {expanded ? '▲ Hide personal fit' : '▼ Personal fit'}
+          {expanded ? 'Hide details' : 'Details'}
         </button>
-      </div>
-
-      {showIngredients && (
-        <p style={{ fontSize: 12, color: 'var(--gray-600)', lineHeight: 1.6, marginTop: 8 }}>
-          {[...recipe.matched_ingredients, ...recipe.missing_ingredients].join(', ')}
-        </p>
       )}
-      {expanded && <ScoreExplainer recipe={recipe} />}
+
+      {expanded && phase === 'idle' && (
+        <div style={{ marginTop: 12, paddingTop: 14, borderTop: '1px solid var(--gray-100)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Full ingredient list */}
+          <button
+            onClick={() => setShowIngredients(s => !s)}
+            style={{
+              fontSize: 12, fontWeight: 500, color: 'var(--green-700)', background: 'none',
+              border: 'none', textAlign: 'left', padding: 0, cursor: 'pointer',
+            }}
+          >
+            {showIngredients ? '▲ Hide ingredients' : '▼ Ingredients'}
+          </button>
+          {showIngredients && (
+            <p style={{ fontSize: 12, color: 'var(--gray-600)', lineHeight: 1.6, margin: 0 }}>
+              {[...recipe.matched_ingredients, ...recipe.missing_ingredients].join(', ')}
+            </p>
+          )}
+
+          {/* Score breakdown */}
+          <ScoreExplainer recipe={recipe} />
+        </div>
+      )}
 
       {/* Rating prompt — shown after Cook is clicked */}
       {phase === 'cooked' && (
@@ -287,23 +322,6 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
           <div style={{ marginTop: 12 }}>
             <WinePairing recipeId={recipe.recipe_id} />
           </div>
-        </div>
-      )}
-
-      {/* Action buttons — hidden after cooking */}
-      {phase === 'idle' && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--gray-100)' }}>
-          <button
-            className="btn btn-primary"
-            style={{ flex: 1 }}
-            onClick={handleCook}
-            disabled={submitting}
-          >
-            {submitting ? '…' : '✓ Cook this'}
-          </button>
-          <button className="btn btn-ghost" onClick={handleSkip}>
-            Skip
-          </button>
         </div>
       )}
 

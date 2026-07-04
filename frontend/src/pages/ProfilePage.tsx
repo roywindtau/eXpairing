@@ -100,7 +100,7 @@ export function ProfilePage({ userId }: Props) {
         </div>
 
         {/* CF status + rating progress */}
-        <div style={{ padding: '14px', background: 'var(--gray-50)', borderRadius: 'var(--radius-sm)' }}>
+        <div style={{ padding: 16, background: 'var(--gray-50)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
             <div>
               <p style={{ fontSize: 13, fontWeight: 500 }}>Personalization status</p>

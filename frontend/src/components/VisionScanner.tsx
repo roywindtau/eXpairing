@@ -161,7 +161,7 @@ export function VisionScanner({ userId, onConfirmed, demoMode = false }: Props) 
 
   if (phase === 'error') {
     return (
-      <div className="card" style={{ background: 'var(--red-50)', border: '1px solid #fecaca' }}>
+      <div className="card" style={{ background: 'var(--red-50)', border: '1px solid var(--red-100)' }}>
         <p style={{ fontSize: 14, color: 'var(--red-600)', marginBottom: 12 }}>⚠ {error}</p>
         <button className="btn btn-ghost" onClick={reset}>Try again</button>
       </div>
@@ -210,8 +210,8 @@ export function VisionScanner({ userId, onConfirmed, demoMode = false }: Props) 
             gap: 8, alignItems: 'center',
             padding: '8px 12px',
             background: !item.expiry_date ? 'var(--amber-50)' : 'var(--gray-50)',
-            borderRadius: 8,
-            border: !item.expiry_date ? '1px solid #fde68a' : '1px solid var(--gray-100)',
+            borderRadius: 10,
+            border: !item.expiry_date ? '1px solid var(--amber-100)' : '1px solid var(--gray-100)',
           }}>
             <div>
               <input

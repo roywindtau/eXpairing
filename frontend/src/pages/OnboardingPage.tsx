@@ -56,11 +56,16 @@ export function OnboardingPage({ onCreated }: Props) {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div className="card" style={{ maxWidth: 480, width: '100%' }}>
+      <div className="card" style={{ maxWidth: 480, width: '100%', padding: '2rem 1.75rem', borderRadius: 20 }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🍳</div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--green-700)' }}>Fridge2Fork</h1>
+          <div style={{
+            fontSize: 34, width: 72, height: 72, margin: '0 auto 14px',
+            borderRadius: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'linear-gradient(135deg, #5cb860, var(--green-600))',
+            boxShadow: '0 6px 18px rgba(46,125,50,.3), inset 0 1px 0 rgba(255,255,255,.25)',
+          }}>🍳</div>
+          <h1 style={{ fontSize: 27, fontWeight: 600, color: 'var(--green-700)', fontFamily: 'var(--font-display)', letterSpacing: '-.015em' }}>Fridge2Fork</h1>
           <p style={{ fontSize: 14, color: 'var(--gray-500)', marginTop: 4 }}>
             Rank recipes to minimize food waste
           </p>

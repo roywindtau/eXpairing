@@ -101,7 +101,7 @@ export function WineForYouPage({ userId }: Props) {
   // profile on the backend and seed recommendations until the user rates wines.
   const FruitPicker = () => (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 18 }}>
-      <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>
+      <span style={{ fontSize: 12, color: 'var(--gray-500)', fontWeight: 500 }}>
         Fruits you enjoy {fruits.size === 0 && '(helps us start)'}
       </span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 460 }}>
@@ -133,7 +133,7 @@ export function WineForYouPage({ userId }: Props) {
   // Style chips — toggle which styles to generate. Empty = "styles you drink".
   const StylePicker = () => (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 18 }}>
-      <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>
+      <span style={{ fontSize: 12, color: 'var(--gray-500)', fontWeight: 500 }}>
         Styles {styles.size === 0 && '(all you drink)'}
       </span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
@@ -230,8 +230,8 @@ export function WineForYouPage({ userId }: Props) {
           <>
             <StylePicker />
             <p style={{
-              fontSize: 12, color: 'var(--gray-400)', margin: '0 0 12px',
-              fontWeight: 500,
+              fontSize: 11, color: 'var(--gray-500)', margin: '0 0 12px',
+              fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em',
             }}>
               Picked for you
             </p>

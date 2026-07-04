@@ -20,8 +20,8 @@ function daysUntil(iso: string): number {
 
 function rowBg(iso: string): string {
   const d = daysUntil(iso)
-  if (d < 0) return 'var(--red-50)'
-  if (d <= 3) return '#fff5f5'
+  if (d < 0) return 'var(--red-100)'
+  if (d <= 3) return 'var(--red-50)'
   if (d <= 7) return 'var(--amber-50)'
   return 'transparent'
 }

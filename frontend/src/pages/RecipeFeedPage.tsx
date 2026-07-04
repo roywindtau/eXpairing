@@ -20,18 +20,23 @@ function CfStrategyBanner({ strategy }: { strategy: string | null }) {
   const isCold = strategy === 'item_based_cold_start'
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      padding: '10px 16px', marginBottom: 16,
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 16px', marginBottom: 16,
       background: isCold ? 'var(--blue-50)' : 'var(--green-50)',
-      border: `1px solid ${isCold ? '#bfdbfe' : 'var(--green-100)'}`,
+      border: `1px solid ${isCold ? 'var(--blue-100)' : 'var(--green-200)'}`,
       borderRadius: 'var(--radius-md)', fontSize: 13,
+      boxShadow: 'var(--shadow-sm)',
     }}>
-      <span style={{ fontSize: 18 }}>{isCold ? '🌱' : '✨'}</span>
+      <span style={{
+        fontSize: 18, width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+        background: 'rgba(255,255,255,.75)', border: '1px solid rgba(255,255,255,.9)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>{isCold ? '🌱' : '✨'}</span>
       <div>
         <span style={{ fontWeight: 600, color: isCold ? 'var(--blue-600)' : 'var(--green-700)' }}>
           {isCold ? 'Personalized for you (new user)' : 'Personalized from your history'}
         </span>
-        <p style={{ fontSize: 12, color: isCold ? '#3b82f6' : 'var(--green-600)', marginTop: 1 }}>
+        <p style={{ fontSize: 12, color: isCold ? 'var(--blue-500)' : 'var(--green-600)', marginTop: 1 }}>
           {isCold
             ? 'Recommendations use community patterns + your diet preferences. Rate 5 recipes to unlock full personalization.'
             : 'Using your rating history with matrix factorization (CF model).'}
@@ -79,9 +84,10 @@ export function RecipeFeedPage({ userId }: Props) {
   const handleCooked = (id: number) => setCooked(prev => new Set([...prev, id]))
 
   const visible = recipes.filter(r => !skipped.has(r.recipe_id) && !cooked.has(r.recipe_id))
-  const sorted  = sortKey === 'final_score'
-    ? visible
-    : [...visible].sort((a, b) => b[sortKey] - a[sortKey])
+  // Always sort by the chosen key (highest first), including the default
+  // "Total score" — the API pool isn't strictly ordered, so relying on its
+  // order made the sort look inconsistent when toggling options.
+  const sorted  = [...visible].sort((a, b) => b[sortKey] - a[sortKey])
 
   // Search filters by recipe name OR any ingredient (matched + missing = full list).
   const q = query.trim().toLowerCase()
@@ -128,10 +134,10 @@ export function RecipeFeedPage({ userId }: Props) {
             onChange={e => setSortKey(e.target.value as SortKey)}
             aria-label="Sort recipes by"
             style={{
-              fontSize: 12, padding: '4px 8px',
-              border: '1px solid var(--gray-300)', borderRadius: 4,
+              fontSize: 13, padding: '6px 10px',
+              border: '1px solid var(--gray-300)', borderRadius: 8,
               background: 'white', color: 'var(--gray-700)',
-              cursor: 'pointer',
+              cursor: 'pointer', boxShadow: 'var(--shadow-sm)',
             }}
           >
             {SORT_OPTIONS.map(o => (
@@ -182,7 +188,7 @@ export function RecipeFeedPage({ userId }: Props) {
         </div>
       ) : (
         <>
-          <p style={{ fontSize: 13, color: 'var(--gray-400)', marginBottom: 14 }}>
+          <p style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 14 }}>
             {q
               ? `Showing ${shown.length} of ${filtered.length} recipes matching "${query.trim()}"`
               : `Showing ${shown.length} of ${filtered.length} recipes · ranked by CF · expiry urgency · pantry match`}
