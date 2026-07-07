@@ -1,22 +1,32 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { getRecipeDetail } from '../api/client'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { getRecipeDetail, logEvent } from '../api/client'
 import type { RecipeDetail } from '../api/client'
 import { WinePairing } from '../components/WinePairing'
+import { StarRating } from '../components/StarRating'
 
-// userId is accepted (App passes it to every page route) but pairing is pure
-// content-based, so it isn't used here.
 interface Props { userId: number }
+
+interface CookNavState {
+  fromCook?: boolean
+  n_missing?: number
+}
 
 // Food.com text is all-lowercase; capitalize the first letter of a sentence.
 const sentenceCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-export function RecipeDetailPage(_: Props) {
+export function RecipeDetailPage({ userId }: Props) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const cookState = (location.state as CookNavState | null) ?? {}
+
   const [recipe, setRecipe] = useState<RecipeDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [rated, setRated] = useState(false)
+  const [ratedStars, setRatedStars] = useState(0)
 
   useEffect(() => {
     if (!id) return
@@ -25,6 +35,26 @@ export function RecipeDetailPage(_: Props) {
       .catch(() => setError('Recipe not found.'))
       .finally(() => setLoading(false))
   }, [id])
+
+  const handleRate = async (stars: number) => {
+    if (!recipe) return
+    if (stars > 0) {
+      setSubmitting(true)
+      try {
+        await logEvent({
+          user_id:    userId,
+          recipe_id:  recipe.id,
+          event_type: 'rate',
+          rating:     stars,
+          n_missing:  cookState.n_missing ?? 0,
+        })
+      } finally {
+        setSubmitting(false)
+      }
+    }
+    setRatedStars(stars)
+    setRated(true)
+  }
 
   if (loading) return (
     <div className="page">
@@ -43,6 +73,8 @@ export function RecipeDetailPage(_: Props) {
       </div>
     </div>
   )
+
+  const showRating = cookState.fromCook && !rated
 
   return (
     <div className="page" style={{ maxWidth: 690 }}>
@@ -77,6 +109,39 @@ export function RecipeDetailPage(_: Props) {
           <span key={t} className="badge badge-green" style={{ fontSize: 14, padding: '5px 13px', textTransform: 'capitalize' }}>{t}</span>
         ))}
       </div>
+
+      {/* Rating — shown after "Cook this" from the feed */}
+      {showRating && (
+        <section
+          className="card"
+          style={{
+            marginBottom: 28, padding: '20px 24px',
+            background: 'var(--green-50)', border: '1px solid var(--green-100)',
+          }}
+        >
+          <StarRating onRate={handleRate} submitting={submitting} />
+        </section>
+      )}
+
+      {rated && cookState.fromCook && (
+        <section
+          className="card"
+          style={{
+            marginBottom: 28, padding: '20px 24px', textAlign: 'center',
+            background: 'var(--green-50)', border: '1px solid var(--green-100)',
+          }}
+        >
+          <div style={{ fontSize: 28, marginBottom: 6 }}>✓</div>
+          <p style={{ fontSize: 14, color: 'var(--green-700)', fontWeight: 500 }}>
+            {ratedStars > 0 ? 'Cooked & rated!' : 'Cooked!'}
+          </p>
+          {ratedStars > 0 && (
+            <p style={{ fontSize: 12, color: 'var(--green-600)', marginTop: 2 }}>
+              Your rating helps improve recommendations.
+            </p>
+          )}
+        </section>
+      )}
 
       {/* Description */}
       {recipe.description && (

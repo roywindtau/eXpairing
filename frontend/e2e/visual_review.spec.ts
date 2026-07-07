@@ -182,13 +182,14 @@ test('UI visual review — demo states', async ({ page }) => {
     await shot(page, `28-cook-${i+1}-card-before-click`)
     await card.getByRole('button', { name: '✓ Cook this' }).click()
     await pause(400)
-    await shot(page, `29-cook-${i+1}-star-buttons-visible`)
+    await shot(page, `29-cook-${i+1}-recipe-page-with-stars`)
 
-    await card.locator('button').filter({ hasText: '★' }).nth(starsToGive[i] - 1).click()
+    await page.locator('button').filter({ hasText: '★' }).nth(starsToGive[i] - 1).click()
     await pause(600)
     await shot(page, `30-cook-${i+1}-rated-${starsToGive[i]}stars`)
 
-    await page.mouse.wheel(0, 260); await pause(250)
+    await page.getByRole('button', { name: '← Back' }).click()
+    await pause(250)
   }
 
   await shot(page, '31-feed-after-5-ratings-pre-refresh')

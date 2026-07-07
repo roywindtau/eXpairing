@@ -1,15 +1,13 @@
 // RecipeCard.tsx
-// Shows a recipe with match ring, score explainer, and three interaction modes:
-//   Cook  -> logs event_type=cook, reveals star rating input
-//   Rate  -> logs event_type=rate with 1-5 stars (feeds SVD training)
+// Shows a recipe with match ring, score explainer, and two interaction modes:
+//   Cook  -> logs event_type=cook, navigates to recipe detail for rating
 //   Skip  -> logs event_type=skip, hides card from feed
 
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import type { RecipeScore } from '../api/client'
 import { ScoreExplainer } from './ScoreExplainer'
 import { ScoreRing } from './ScoreRing'
-import { WinePairing } from './WinePairing'
 import { logEvent, addToShoppingList } from '../api/client'
 
 interface Props {
@@ -47,85 +45,14 @@ function titleCase(name: string): string {
     .join(' ')
 }
 
-// ── star rating input ──────────────────────────────────────────────────────
-// Renders 5 clickable stars. Hover previews, click confirms.
-// This generates event_type=rate which feeds SVD training.
-// The user needs MIN_RATINGS_FOR_CF (5) ratings before SVD activates.
-function StarRating({
-  onRate,
-  submitting,
-}: {
-  onRate: (stars: number) => void
-  submitting: boolean
-}) {
-  const [hovered, setHovered] = useState(0)
-  const [selected, setSelected] = useState(0)
-
-  const handleClick = (star: number) => {
-    setSelected(star)
-    onRate(star)
-  }
-
-  const labels = ['', 'Terrible', 'Bad', 'OK', 'Good', 'Excellent']
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 0' }}>
-      <p style={{ fontSize: 13, color: 'var(--gray-600)', fontWeight: 500 }}>
-        How was it? Your rating improves future recommendations.
-      </p>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {[1, 2, 3, 4, 5].map(star => {
-          const active = star <= (hovered || selected)
-          return (
-            <button
-              key={star}
-              disabled={submitting || selected > 0}
-              onClick={() => handleClick(star)}
-              onMouseEnter={() => setHovered(star)}
-              onMouseLeave={() => setHovered(0)}
-              style={{
-                fontSize: 28,
-                lineHeight: 1,
-                color: active ? 'var(--amber-400)' : 'var(--gray-200)',
-                transition: 'color .1s, transform .1s',
-                transform: active ? 'scale(1.15)' : 'scale(1)',
-                cursor: selected > 0 ? 'default' : 'pointer',
-                background: 'none',
-                border: 'none',
-                padding: '2px 4px',
-              }}
-            >
-              ★
-            </button>
-          )
-        })}
-      </div>
-      {(hovered > 0 || selected > 0) && (
-        <span style={{ fontSize: 12, color: 'var(--gray-500)', height: 16 }}>
-          {selected > 0 ? `Rated: ${labels[selected]}` : labels[hovered]}
-        </span>
-      )}
-      {selected === 0 && (
-        <button
-          onClick={() => onRate(0)}
-          style={{ fontSize: 12, color: 'var(--gray-400)', background: 'none', border: 'none', cursor: 'pointer' }}
-        >
-          Skip rating
-        </button>
-      )}
-    </div>
-  )
-}
-
-// ── main card ──────────────────────────────────────────────────────────────
 export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
+  const navigate = useNavigate()
   const [expanded,        setExpanded]        = useState(false)
   const [showIngredients, setShowIngredients] = useState(false)
-  const [phase,           setPhase]           = useState<'idle' | 'cooked' | 'rated' | 'skipped'>('idle')
-  const [submitting,  setSubmitting]  = useState(false)
-  const [listStatus,  setListStatus]  = useState<'idle' | 'adding' | 'added' | 'duplicate'>('idle')
+  const [skipped,         setSkipped]         = useState(false)
+  const [submitting,      setSubmitting]      = useState(false)
+  const [listStatus,      setListStatus]      = useState<'idle' | 'adding' | 'added' | 'duplicate'>('idle')
 
-  // Step 1: user clicks "Cook this" — log the cook event, show rating prompt
   const handleCook = async () => {
     setSubmitting(true)
     try {
@@ -135,35 +62,20 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
         event_type: 'cook',
         n_missing:  recipe.missing_ingredients.length,
       })
-      setPhase('cooked')   // reveal star rating
+      onCooked?.()
+      navigate(`/recipe/${recipe.recipe_id}`, {
+        state: {
+          fromCook:  true,
+          n_missing: recipe.missing_ingredients.length,
+        },
+      })
     } finally {
       setSubmitting(false)
     }
   }
 
-  // Step 2: user selects stars (or skips rating) — log rate event, done
-  const handleRate = async (stars: number) => {
-    if (stars > 0) {
-      setSubmitting(true)
-      try {
-        await logEvent({
-          user_id:    userId,
-          recipe_id:  recipe.recipe_id,
-          event_type: 'rate',
-          rating:     stars,
-          n_missing:  recipe.missing_ingredients.length,
-        })
-      } finally {
-        setSubmitting(false)
-      }
-    }
-    setPhase('rated')
-    // Notify parent after a short delay so user sees confirmation
-    setTimeout(() => onCooked?.(), 800)
-  }
-
   const handleSkip = async () => {
-    setPhase('skipped')
+    setSkipped(true)
     await logEvent({
       user_id:    userId,
       recipe_id:  recipe.recipe_id,
@@ -184,26 +96,7 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
     setTimeout(() => setListStatus('idle'), 2500)
   }
 
-  // Rated state: green confirmation
-  if (phase === 'rated') {
-    return (
-      <div className="card" style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        minHeight: 120, background: 'var(--green-50)',
-        border: '1px solid var(--green-100)',
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 28, marginBottom: 6 }}>✓</div>
-          <p style={{ fontSize: 14, color: 'var(--green-700)', fontWeight: 500 }}>
-            Cooked & rated!
-          </p>
-          <p style={{ fontSize: 12, color: 'var(--green-600)', marginTop: 2 }}>
-            Your rating helps improve recommendations.
-          </p>
-        </div>
-      </div>
-    )
-  }
+  if (skipped) return null
 
   const matchPct = Math.round(recipe.match_ratio * 100)
   const missingCount = recipe.missing_ingredients.length
@@ -243,7 +136,7 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
       </div>
 
       {/* Buy missing — surfaced in the body when ingredients are short */}
-      {phase === 'idle' && missingCount > 0 && (
+      {missingCount > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>
             Need {missingCount} item{missingCount > 1 ? 's' : ''}
@@ -271,37 +164,33 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
       )}
 
       {/* Primary actions */}
-      {phase === 'idle' && (
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            className="btn btn-primary"
-            style={{ fontSize: 15, padding: '.6rem 1.3rem' }}
-            onClick={handleCook}
-            disabled={submitting}
-          >
-            {submitting ? '…' : '✓ Cook this'}
-          </button>
-          <button className="btn btn-ghost" style={{ fontSize: 15, padding: '.6rem 1.3rem' }} onClick={handleSkip}>
-            Skip
-          </button>
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          className="btn btn-primary"
+          style={{ fontSize: 15, padding: '.6rem 1.3rem' }}
+          onClick={handleCook}
+          disabled={submitting}
+        >
+          {submitting ? '…' : '✓ Cook this'}
+        </button>
+        <button className="btn btn-ghost" style={{ fontSize: 15, padding: '.6rem 1.3rem' }} onClick={handleSkip}>
+          Skip
+        </button>
+      </div>
 
       {/* Details — everything secondary lives behind one quiet toggle */}
-      {phase === 'idle' && (
-        <button
-          onClick={() => setExpanded(e => !e)}
-          style={{
-            fontSize: 13, fontWeight: 500, color: 'var(--gray-400)',
-            background: 'none', border: 'none', cursor: 'pointer',
-            textAlign: 'center', padding: '12px 0 0', marginTop: 6,
-          }}
-        >
-          {expanded ? 'Hide details' : 'Details'}
-        </button>
-      )}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        style={{
+          fontSize: 13, fontWeight: 500, color: 'var(--gray-400)',
+          background: 'none', border: 'none', cursor: 'pointer',
+          textAlign: 'center', padding: '12px 0 0', marginTop: 6,
+        }}
+      >
+        {expanded ? 'Hide details' : 'Details'}
+      </button>
 
-      {expanded && phase === 'idle' && (
+      {expanded && (
         <div style={{ marginTop: 12, paddingTop: 14, borderTop: '1px solid var(--gray-100)', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Full ingredient list */}
           <button
@@ -321,20 +210,6 @@ export function RecipeCard({ recipe, userId, onCooked, onSkipped }: Props) {
 
           {/* Score breakdown */}
           <ScoreExplainer recipe={recipe} />
-        </div>
-      )}
-
-      {/* Rating prompt — shown after Cook is clicked */}
-      {phase === 'cooked' && (
-        <div style={{
-          marginTop: 12, padding: '12px 0',
-          borderTop: '1px solid var(--gray-100)',
-          borderBottom: '1px solid var(--gray-100)',
-        }}>
-          <StarRating onRate={handleRate} submitting={submitting} />
-          <div style={{ marginTop: 12 }}>
-            <WinePairing recipeId={recipe.recipe_id} />
-          </div>
         </div>
       )}
 

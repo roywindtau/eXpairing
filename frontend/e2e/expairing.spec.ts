@@ -314,17 +314,18 @@ test.describe('Recipe Feed', () => {
     await expect(page.locator('.card')).toHaveCount(initialCount - 1)
   })
 
-  test('cook button shows star rating', async ({ page }) => {
+  test('cook button navigates to recipe page with star rating', async ({ page }) => {
     await expect(page.locator('.card').first()).toBeVisible({ timeout: 25_000 })
     await page.getByRole('button', { name: '✓ Cook this' }).first().click()
+    await expect(page).toHaveURL(/\/recipe\/\d+/)
     await expect(page.getByText('How was it?')).toBeVisible()
-    // 5 star buttons
     await expect(page.locator('button').filter({ hasText: '★' })).toHaveCount(5)
   })
 
   test('rating submits and shows confirmation', async ({ page }) => {
     await expect(page.locator('.card').first()).toBeVisible({ timeout: 25_000 })
     await page.getByRole('button', { name: '✓ Cook this' }).first().click()
+    await expect(page).toHaveURL(/\/recipe\/\d+/)
     await expect(page.getByText('How was it?')).toBeVisible()
     await page.locator('button').filter({ hasText: '★' }).nth(3).click() // 4 stars
     await expect(page.getByText('Cooked & rated!')).toBeVisible({ timeout: 5_000 })

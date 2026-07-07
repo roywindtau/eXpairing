@@ -12,6 +12,8 @@ Recommendation at scale follows a two-stage pattern:
 Stage 1 filters applied in order:
     1. Diet tag filter   (hard constraint — user cannot eat these)
     2. Popularity cap    (limit to 2000 highest-rated candidates)
+    3. Skip exclusion    (recipes dismissed in the last 7 days)
+    4. Rate exclusion    (recipes rated in the last 7 days)
 
 This is intentional system design — scoring 230k recipes per request
 in real-time is infeasible. The candidate set captures the relevant
@@ -117,6 +119,23 @@ def _count_user_ratings(user_id: int, db: Session) -> int:
     )
 
 
+def _recently_excluded_ids(
+    db: Session, user_id: int, event_type: str, days: int = 7,
+) -> set[int]:
+    """Recipe IDs to hide from the feed based on recent user events."""
+    cutoff = datetime.now() - timedelta(days=days)
+    return {
+        row[0]
+        for row in db.query(UserEvent.recipe_id)
+        .filter(
+            UserEvent.user_id    == user_id,
+            UserEvent.event_type == event_type,
+            UserEvent.created_at >= cutoff,
+        )
+        .all()
+    }
+
+
 def _pantry_dicts(items: list[PantryItem]) -> list[dict]:
     return [{"ingredient": i.ingredient,
              "expiry_date": i.expiry_date.isoformat()} for i in items]
@@ -161,6 +180,7 @@ def get_ranked_recipes(
 
     Stage 1 — Candidate generation:
         Filter by diet_tags → cap at 2000 recipes
+        → exclude skips and recent ratings (7-day window)
         (reduces 230k → ~2000 candidates before scoring)
 
     Stage 2 — Ranking:
@@ -224,20 +244,17 @@ def get_ranked_recipes(
     if not recipes:
         return []
 
-    # Skip exclusion: hide recipes the user dismissed in the last 7 days
-    skip_cutoff = datetime.now() - timedelta(days=7)
-    skipped_ids = {
-        row[0]
-        for row in db.query(UserEvent.recipe_id)
-        .filter(
-            UserEvent.user_id    == user_id,
-            UserEvent.event_type == "skip",
-            UserEvent.created_at >= skip_cutoff,
-        )
-        .all()
-    }
+    # Feed exclusions: hide skipped and recently-rated recipes (7 days)
+    skipped_ids = _recently_excluded_ids(db, user_id, "skip")
     if skipped_ids:
         recipes = [r for r in recipes if r.id not in skipped_ids]
+
+    if not recipes:
+        return []
+
+    recently_rated_ids = _recently_excluded_ids(db, user_id, "rate")
+    if recently_rated_ids:
+        recipes = [r for r in recipes if r.id not in recently_rated_ids]
 
     if not recipes:
         return []

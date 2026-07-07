@@ -204,14 +204,13 @@ test('eXpairing full feature demo', async ({ page }) => {
     await card.getByRole('button', { name: '✓ Cook this' }).click()
     await pause(600)
 
-    // 5 ★ star buttons appear inside the card
-    const starButtons = card.locator('button').filter({ hasText: '★' })
+    await expect(page).toHaveURL(/\/recipe\/\d+/)
+    const starButtons = page.locator('button').filter({ hasText: '★' })
     await starButtons.nth(starsToGive[i] - 1).click()
     await pause(800)
 
-    // Scroll to reveal next cards
-    await page.mouse.wheel(0, 260)
-    await pause(350)
+    await page.getByRole('button', { name: '← Back' }).click()
+    await expect(page).toHaveURL(/\/feed/)
   }
 
   // Click Refresh to reload feed — CF flips to warm after 5 ratings

@@ -10,6 +10,7 @@ Tests for the RecSys improvements:
   5. Revealed beta in stats endpoint (users.py)
   6. NDCG metric (evaluate.py)
   7. Skip exclusion (recipes router — via direct scoring logic test)
+  8. Rate exclusion (recipes router — 7-day feed filter)
 """
 
 import sys, os
@@ -577,3 +578,88 @@ class TestSkipExclusion:
 
         assert 0 not in filtered_ids
         assert len(filtered_ids) == len(full_ids) - 1
+
+
+# ── 8. Rate exclusion (router helper + scoring-level) ──────────────────────
+
+@pytest.fixture()
+def rate_exclusion_db():
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from backend.db.models import Base, User, Recipe, UserEvent
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    user = User(name="Rate Test", beta=0.5)
+    session.add(user)
+    session.add(Recipe(id=101, name="Omelette", ingredients_csv="eggs,butter",
+                       avg_rating=4.5, n_ratings=20))
+    session.add(Recipe(id=102, name="Pasta", ingredients_csv="pasta,tomato",
+                       avg_rating=4.0, n_ratings=15))
+    session.commit()
+    yield session, user
+    session.close()
+
+
+class TestRateExclusion:
+    """
+    The 7-day rate exclusion lives in the recipes router (DB query).
+    Recently rated recipes are removed from the candidate pool before scoring.
+    """
+
+    def test_recently_rated_recipe_in_exclusion_set(self, rate_exclusion_db):
+        from datetime import datetime
+        from backend.db.models import UserEvent
+        from backend.routers.recipes import _recently_excluded_ids
+
+        session, user = rate_exclusion_db
+        session.add(UserEvent(
+            user_id=user.id,
+            recipe_id=101,
+            event_type="rate",
+            rating=5.0,
+            created_at=datetime.now(),
+        ))
+        session.commit()
+
+        excluded = _recently_excluded_ids(session, user.id, "rate")
+        assert 101 in excluded
+        assert 102 not in excluded
+
+    def test_old_rating_not_excluded(self, rate_exclusion_db):
+        from datetime import datetime, timedelta
+        from backend.db.models import UserEvent
+        from backend.routers.recipes import _recently_excluded_ids
+
+        session, user = rate_exclusion_db
+        session.add(UserEvent(
+            user_id=user.id,
+            recipe_id=101,
+            event_type="rate",
+            rating=5.0,
+            created_at=datetime.now() - timedelta(days=8),
+        ))
+        session.commit()
+
+        excluded = _recently_excluded_ids(session, user.id, "rate")
+        assert 101 not in excluded
+
+    def test_absent_recipe_not_in_output(self):
+        from backend.services.scoring import rank_recipes
+
+        pantry = make_pantry([("eggs", 2)])
+        recipes = [
+            {"id": 1, "name": "Omelette", "ingredients": ["eggs"]},
+            {"id": 2, "name": "Pasta",    "ingredients": ["pasta"]},
+        ]
+        # Simulate rate exclusion: recipe 2 removed before scoring
+        filtered = [r for r in recipes if r["id"] != 2]
+        ranked = rank_recipes(pantry, filtered)
+        ids = [r.recipe_id for r in ranked]
+        assert 2 not in ids
+        assert 1 in ids
