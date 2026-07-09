@@ -53,19 +53,19 @@ It bridges the gap between **Personal Taste Preference** (what you love to eat) 
 &nbsp;
 
 ## Screenshots
-Onboarding page
+Onboarding Page:
 ![Onboarding page](images/Onboarding.png)
-Pantry Expiry + Scan Photo + Shopping List page
+Pantry + Scan Fridge AI Vision + Shopping List Page:
 ![Pantry Expiry + Scan Photo + Shopping List page](images/pantryAndShoppingList.png)
-Main Recipes Suggestions Page
+Main Recipes Suggestions Page:
 ![Main Recipes Suggestions Page](images/recipes.png)
-Recipes Card - Score Breakdown, Add to Shopping list
+Recipes Card - Score Breakdown, Add to Shopping List:
 ![Recipes Card - Score Breakdown, Add to Shopping list](images/fullRecipeCard.png)
-Recipes Page - Full Steps + Matching of wine specific to recipe
+Recipes Page - Full Steps + Matching of wine specific to recipe:
 ![Recipes Page - Full Steps + Matching of wine specific to recipe](images/pairingForSpecificRecipe.png)
-Wine Cold Start Page
+Wine Cold Start Page:
 ![Wine Cold Start Page](images/wineColdStart.png)
-Wine Suggestions Page
+Wine Suggestions Page:
 ![Wine Suggestions Page](images/winePage.png)
-User Profile
+User Profile:
 ![User Profile](images/profile.png)
