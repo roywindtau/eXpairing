@@ -62,3 +62,6 @@ OPENAI_API_KEY
 
 # Cursor's files
 .cursor/
+
+# Local MCP server config (machine-specific)
+.mcp.json
