@@ -6,14 +6,14 @@ eXpairing is a personalized recommendation platform built for the Recommender Sy
 &nbsp;<br>
 ## Live Application
 
-eXpairing is deployed and running, so no clone, dataset download, or training run is required:
+eXpairing is deployed and running. So no clone, dataset download, or training run is required:
 
 | | |
 |---|---|
 | **Web application** | **<https://eXpairing.onrender.com>** |
 | API | <https://eXpairing-api.onrender.com> ([Swagger UI](https://eXpairing-api.onrender.com/docs)) |
 
-The web application is hosted on a free instance and sleeps after roughly 15 minutes of inactivity, so the first page load after an idle period can take 30–60 seconds while it wakes. Recommendation requests take a few seconds to return: ranking is CPU-bound and the deployed instance is single-core. Both are expected behaviour, not faults.
+The web application is hosted on a free instance and sleeps after roughly 15 minutes of inactivity, so the first page load after an idle period can take 30–60 seconds while it wakes. Recommendation requests take a few seconds to return: ranking is CPU-bound and the deployed instance is single-core.
 
 To run the project locally instead, see the [Installation Guide](install.md).
 
