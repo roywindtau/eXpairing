@@ -35,13 +35,14 @@ eXpairing operates as a smart dining assistant designed to solve a major househo
 
 It bridges the gap between **Personal Taste Preference** (what you love to eat) and **Real-World Household Feasibility** (what is expiring in your fridge). In addition, it integrates a full **Wine Recommender Module** to deliver personalized wine suggestions and automated recipe-wine pairing, providing a complete end-to-end culinary experience.
 
-### Core Product Features & Value Propositions
-- **Smart Pantry & Multi-Modal Vision Scanning**: Eliminates tedious manual tracking. Users can snap a fridge photo (processed via GPT-4o / Gemini 2.5 Flash) or use debounced autocomplete to log ingredients. Packaging noise and brand names ("Tnuva 3% Milk") are automatically canonicalized to model tokens ("milk").
-- **Waste-Minimizing Recipe Feed**: Candidate recipes are ranked by a multi-component hybrid scoring engine blending Collaborative Filtering (Biased Funk SVD / item-based cold start), Expiry Urgency (exponential decay), Ingredient Match Ratios, and Content-Based TF-IDF matching.
-- **Revealed Preference Learning (`β` Drift)**: Addresses aspirational user bias. While users set a stated waste-aversion preference ($\beta$), an EMA feedback loop tracks revealed cooking habits (`n_missing`). If a user's stated preference diverges from actual behavior by $>10\%$, the system adapts weights smoothly and alerts the user in their profile.
-- **Feed Diversity & Monotony Reduction**: Applies Maximal Marginal Relevance (MMR $\lambda=0.7$) using ingredient Jaccard similarity. Prevents repetitive feeds (e.g. 20 variations of muffins) and surfaces diverse meal choices (pastas, soups, salads, bakes).
-- **Interactive Cooking & Shopping Workflow**: Provides full numbered step-by-step instructions. Missing ingredients can be added with a single click to a persistent shopping list featuring deduplication, source recipe attribution, and store check-off flows. Skip exclusions suppress dismissed recipes for 7 days.
-- **Personalized Wine & Automated Recipe Pairing**: Delivers tailored wine recommendations ("Suggest me a wine" via `GET /wine/ranked`) powered by confidence-weighted ALS collaborative filtering and structured sommelier vectors. Automatically pairs optimal wines with any recipe (`POST /wine/pair`) using 12-dimensional culinary category vector matching and empirical pairing rules.
+### Core Features
+- **Smart Pantry & Photo Scanning**: Log ingredients by uploading a fridge photo (processed using GPT-4o or Gemini 2.5 Flash) or using autocomplete. Brand names and packaging noise (like "Tnuva 3% Milk") are automatically cleaned to match recipe ingredients ("milk").
+- **Waste-Minimizing Recipe Feed**: Recipes are ranked using a hybrid scoring system that combines collaborative filtering (Biased Funk SVD / item-based cold start), ingredient expiry dates (exponential decay), ingredient match ratios, and content-based TF-IDF matching.
+- **Revealed Preference Learning ($\beta$ Drift)**: Tracks actual cooking choices to adjust for user bias. If your stated waste-aversion preference ($\beta$) differs from your actual behavior (tracked via missing ingredients `n_missing` over time) by more than 10%, the system automatically updates the weights using an EMA feedback loop and shows a profile alert.
+- **Feed Diversity (MMR)**: Uses Maximal Marginal Relevance (MMR, $\lambda=0.7$) based on ingredient Jaccard similarity to prevent showing too many similar recipes (e.g., multiple muffin variations) and ensure a diverse feed.
+- **Cooking & Shopping Workflow**: Shows step-by-step recipes. You can add missing ingredients to a persistent shopping list with one click. Skipped recipes are hidden for 7 days.
+- **Wine Recommender & Pairing**: Ranks wines based on confidence-weighted ALS collaborative filtering and sommelier vectors (`GET /wine/ranked`). Automatically matches wines to any recipe (`POST /wine/pair`) using 12-dimensional food category vectors and empirical pairing rules.
+
 
 &nbsp;<br>
 

@@ -94,52 +94,49 @@ We validated with leave-one-out over 200 real app users: hold out one of the use
 
 Instead we consulted **Nitsan Granot, sommelier at Claro restaurant in Tel Aviv**, and asked which attributes actually decide whether a wine matches a palate or a dish. Her answer was structural and emphatic: acidity first, because it is what cuts fat and lifts a dish; then body, which determines whether the wine overwhelms the food or is overwhelmed by it. Grape variety — the thing printed largest on the label and the first thing a non-expert reaches for — matters considerably less. We translated that into the shipped weights: acidity 0.368, body 0.368 (together $\sim 74\%$), region 0.158, abv 0.053, grape 0.053.
 
-Two things justify preferring the expert to the sweep. First, **the available objective was the wrong one**. A weight sweep would optimize agreement with X-Wines *ratings*, but the content model's job is palate and pairing similarity, which the rating data does not directly measure. Tuning against the metric we happened to have would have meant optimizing the wrong quantity precisely. Second — and we only appreciated this afterwards — **the grape labels in X-Wines are noisy**, so a statistical fit might well have leaned on the grape block and quietly absorbed that noise. The sommelier's palate-first prior holds grape at $\sim 5\%$ and bounds the damage, for reasons having nothing to do with data quality. The expert prior was the more principled choice, and by coincidence the more robust one.
+ Rating data does not directly measure pairing suitability, and X-Wines grape labels are noisy, so relying heavily on them would degrade quality. We prioritized structural characteristics (acidity and body make up ~74% of the weight) which is more robust. The weights are applied at run-time, allowing easy adjustments.
 
-We apply the weights **at serve time over an unweighted stored matrix**, precisely so this judgement stays contestable: they can be retuned, or overridden per request, without retraining anything.
+**Region Rollup**: X-Wines features 2,160 distinct wine appellations. This is too sparse for content similarity (two Burgundies from adjacent villages would share nothing). We wrote a rollup script to group these into 107 parent regions (e.g., Pauillac → Bordeaux), making region comparison a useful feature.
 
-**Region rollup over raw appellations.** X-Wines carries 2,160 distinct appellations. Used directly as a content-vector block, they are near-orthogonal — two Burgundies from adjacent villages share nothing, so the region signal contributes essentially zero similarity. We built `data/wine/region_rollup.py` to collapse them into 107 parent regions (Pauillac → Bordeaux, Meursault → Burgundy), which is what makes region overlap a usable content feature at all.
+**Focusing on Wine over Beer**: We initially planned to support both wine and beer. We dropped beer to focus our development effort and because wine is a better fit. Wine pairing rules are structured and well-documented. Additionally, X-Wines provided structured, dense ratings and attributes, whereas we lacked a high-quality dataset for beer.
 
-**Cutting beer to ship one beverage domain properly.** What is now the wine module was originally scoped in the plural — wine *and* beer, with a beer-wine relationship model connecting them. We cut beer, for two reasons that reinforced each other.
+**Extracting Pairing Rules**: The Wine-Food pairing dataset (~35k rows) contains rule-based category scores rather than ingredient-level patterns. Instead of training a model on noise, we extracted the underlying lookup table directly. This rule table is blended with recipe category similarity at run-time.
 
-The practical reason was focus. Two drink domains meant two catalogs to source and clean, two cold-start policies, two content-vector designs, and a third cross-domain model on top of them — against a fixed deadline. Spread across all of that, each piece would have been a demo. Concentrated on one, wine became a module we could actually validate: a real bake-off against a frozen split, a hyperparameter sweep, and a leave-one-out check on the serving-time fold-in. We preferred one domain we had measured to two we had merely built.
+**Denormalizing Ingredients**: Instead of joining a 2M+ row ingredients table, we store recipe ingredients as comma-separated strings. This speeds up candidate scoring from database queries to simple string parses.
 
-The substantive reason is that wine is simply the better fit for this system, on both the data-science and the culinary side. Culinarily, wine and food share a vocabulary — body, acidity, tannin, weight, richness — and pairing is a mature, well-documented practice built on exactly those shared axes. That shared structure is what makes a cross-domain projection meaningful at all: our 12-dimensional food category space and the wine content vector line up because sommeliers had already established that they line up. Beer's descriptive axes (bitterness, malt profile, carbonation) map onto food far less directly, and beer-food pairing has a much thinner empirical rule base to draw on. On the data side, X-Wines gave us 21M explicit ratings across 100,646 wines plus structured attributes (grape, region, body, acidity, abv) — enough to train ALS meaningfully and to build an interpretable content vector without any free text. We had no beer dataset of comparable density or attribute richness, which meant a beer CF model would have been thin and the beer-wine relationship model would have been fitted on top of that thinness. The pairing engine works because the wine side is dense and the food side shares its structure; beer would have weakened both halves.
+**Deployment via Docker**: To let users try the app without downloading datasets and training models (which takes over an hour), we deployed the services on Render. The ~940MB of trained models and database files are published as release assets and downloaded during build.
 
-**Extracting the pairing rule table instead of fitting a model to it.** The Wine and Food Pairing dataset offers ~35K rows scoring (wine category × food category) combinations 1–5, and the obvious move is to train a model on it. Signal analysis (`data/pairing/check_ingredient_signal.py`) showed there was nothing to learn: the labels are category-level rule-generated, with no ingredient-level signal beneath them. Fitting a model would have meant fitting noise around a deterministic table. We extracted the table directly instead — per-cell mean quality, with injected contrast rows dropped (`data/pairing/extract_pairing_rules.py` → `models/pairing_rules.json`) — and blend it with category cosine similarity at `ALPHA_COSINE=0.6` / `BETA_RULES=0.4`. Checking whether a dataset contains the signal you intend to learn is cheaper than training on it and wondering why the model generalizes poorly.
-
-**Denormalizing `ingredients_csv`.** A properly normalized `recipe_ingredients` join table would span 2M+ rows and require a join per candidate on every ranked request. Storing comma-separated canonical strings on the `recipes` row makes candidate scoring an $O(1)$ string parse. This is a deliberate trade of write-side elegance for read-side latency on the hot path.
-
-**Deploying the application rather than shipping a clone-and-train.** Running eXpairing from source means cloning the repository, downloading the Food.com and X-Wines datasets, seeding a database with 1.07M ratings, and training four models — the better part of an hour before the first recommendation appears. That is a reasonable thing to ask of a contributor and an unreasonable thing to ask of anyone who simply wants to see whether the system works. We deployed both services to a hosted platform so that the application can be opened at a URL.
-
-The trained artifacts do not fit in the repository. `models/` and the seeded database total roughly 940MB, and individual files exceed GitHub's 100MB per-file limit, so both are gitignored. We publish them as a release asset and have the Dockerfile fetch and unpack them at build time. 
-
-**Verification discipline.** The system carries 530+ pytest unit and behavioral integration tests over scoring math, decay rates, DB transactions, and API contracts, plus 63 Playwright end-to-end browser tests. The calibration bug in Milestone 4 was the reason: it was a scoring-math defect that produced no error, no exception, and a feed that looked superficially fine. Only a test asserting on the *relative contribution* of each component would have caught it, and after that we wrote tests at that level.
+**Testing**: We wrote 530+ backend tests and 63 end-to-end frontend tests. This coverage was essential after a scoring calibration bug occurred that did not raise exceptions but distorted recommendations.
 
 &nbsp;<br>
 
 ## Open Issues & Limitations
 
-- **Offline CF Retraining Schedule**: Matrix factorization weights are trained offline on static Food.com and X-Wines ratings. In-app ratings and cook events are captured in SQLite and used at serving time, but folding them into the latent vectors requires triggering an offline retraining script by hand. The consequence is that community-level knowledge is frozen at training time; only per-user state is live.
-- **Candidate Retrieval Is Not Sub-Millisecond**: Candidate generation uses database indexing and popularity caps in SQLite to narrow 231k recipes to ~200. This is adequate at our scale but is a linear-scan-shaped solution wearing an index, and it will not hold at millions of items.
-- **Noisy Grape Labels (X-Wines)**: Grape variety tags in X-Wines are unreliable — a Cabernet blend may be tagged "Pinot Noir". This corrupts the grape block of the wine content vector and any grape-based UI text. The sommelier weighting deliberately keeps the grape block small ($\sim 5\%$) relative to the structural attributes (body + acidity, $\sim 74\%$), which bounds the damage; we chose palate-first weighting on sommelier grounds and it happened to also be the robust choice against this label noise. It is a mitigation, not a fix.
-- **Untested CF Lever — Positive-Rating Cut**: The hyperparameter sweeps established α=5 linear weighting as the ceiling for *the current confidence matrix*, but that matrix includes every rating, so a 1-star wine still enters as a weak positive ($C = 6$ versus an unobserved cell's $C = 1$). Dropping ratings $< 4$ so that disliked wines stop acting as positives is the one identified pure-CF lever we did not get to test. It is the most likely route past the 0.0291 NDCG@10 ceiling.
+**Manual Offline Retraining**: Collaborative filtering models are trained offline on static datasets. New in-app ratings are used at serve time, but updating the latent factors requires manually running the training scripts.
+
+**Candidate Retrieval Latency**: SQLite indexing is used to filter 231k recipes down to ~200. This works for our scale but won't scale to millions of recipes.
+
+**Noisy Grape Labels**: The grape labels in the X-Wines dataset contain errors. We minimized this issue by keeping the grape weight low (5%) in favor of structural attributes (74% acidity/body), but the raw tags remain noisy.
+
+**Weak Positive Ratings in ALS**: Currently, all ratings (including 1-star) are treated as weak positives in the ALS confidence matrix. We have not yet tested excluding low ratings (e.g., keeping only ratings $\ge 4$) to see if it improves recommendation accuracy.
 
 &nbsp;<br>
 
 ## Future Work
 
-### Closing the Known Gaps
-These follow directly from the limitations above — each one is a specific, scoped fix to something we already know is wrong or missing.
+### Planned Fixes
+**Automated Retraining**: Set up a scheduled job to automatically retrain the recipe and wine models with new in-app user ratings.
 
-- **Scheduled Background Retraining Pipeline**: Automate the offline retraining of both recipe and wine factorizations on a recurring schedule, ingesting accumulated in-app ratings and synthetic cook-event ratings, so community knowledge tracks the live user base rather than the seed dataset.
-- **Vector-Search Candidate Retrieval**: Migrate candidate generation from SQLite indexing to a vector search engine such as FAISS or Qdrant, enabling sub-millisecond approximate similarity queries across millions of items and removing the ~200-candidate cap that currently bounds what the scoring stage can even consider.
-- **Cleaner Grape Metadata**: Cross-reference X-Wines grape labels against an external wine reference source to repair mislabeled varieties, which would let the grape block carry more weight in the content vector without introducing noise.
-- **Test the Positive-Rating Cut**: Rebuild the ALS confidence matrix over ratings $\ge 4$ only, re-run the α sweep on the same frozen split, and measure whether removing weak-positive noise from disliked wines moves NDCG@10 past 0.0291.
+**Vector-Search Candidate Retrieval**: Move candidate generation from SQLite to a vector search engine (like FAISS or Qdrant) to support fast searches over larger datasets.
 
-### Extending the Product
-These are larger directions that would change what eXpairing *is*, not how well it performs.
+**Clean Wine Metadata**: Cross-reference X-Wines with external APIs to correct erroneous grape labels.
 
-- **Supermarket Integration for Live Inventory Tracking**: Integrate with local supermarket systems (loyalty-card purchase history, online-order receipts, or store APIs) to track ingredient supplies automatically. This attacks the single biggest source of friction in the product: today the pantry is only as accurate as what the user scans or types. Purchase data would let the pantry populate itself at checkout, and would supply real expiry horizons from purchase dates rather than relying on the user reading a label. It also closes the shopping-list loop — the list could verify that a bought item actually arrived in the fridge.
-- **Enriched Israeli Wine Coverage**: X-Wines is heavily weighted toward European and New World producers, so an Israeli user gets recommendations they cannot easily buy. Building out Israeli wine coverage with local availability and pricing would make the wine module actionable for the market it was built in. This is a data-sourcing problem rather than a modeling one, and the content vector already generalizes: Israeli wines slot into the existing region rollup and sommelier-weighted attribute space without any change to the model.
-- **Beer and Non-Alcoholic Beverages**: Restore the beverage breadth that was deliberately cut (see *Cutting beer to ship one beverage domain properly* above), extending the module to beer and to non-alcoholic options — sodas, juices, teas, alcohol-free wines and beers. Two things make this more tractable now than at the start. The pairing engine already projects both sides onto a shared 12-dimensional food-category space, so a new beverage domain needs only its own content vector and a mapping into those categories rather than a bespoke cross-domain model. And non-alcoholic coverage broadens the product's addressable audience considerably.
+**Filter Out Low Ratings in CF**: Build the ALS confidence matrix using only ratings $\ge 4$ to test if ignoring disliked wines improves NDCG@10.
+
+### Product Extensions
+
+**Supermarket Integration**: Sync with grocery store purchase history to automatically populate the user's pantry with accurate purchase dates and items.
+
+**Israeli Wine Catalog**: Add local Israeli wines with store availability and pricing to make recommendations more practical for local users.
+
+**Expand Beverages**: Add beer and non-alcoholic drinks. The pairing engine already maps foods to a 12-dimensional category space, making it easy to map new drinks.
