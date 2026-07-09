@@ -27,9 +27,32 @@ COPY data/     ./data/
 
 # Trained model artifacts and the seeded database are baked into the image so
 # the container serves immediately — no training or seeding at deploy time.
-# (.dockerignore excludes models/wine_split/, which is eval-only.)
-COPY models/        ./models/
-COPY fridge2fork.db ./fridge2fork.db
+#
+# They are far too large for git (models/ ~468MB, the DB ~474MB), so a hosted
+# build fetches them from ARTIFACTS_URL: a .tar.gz containing models/ and
+# fridge2fork.db at its root (e.g. a GitHub Release asset).
+#
+#   docker build --build-arg ARTIFACTS_URL=https://.../artifacts.tar.gz .
+#
+# Locally, `docker compose` mounts models/ and the DB over /app at run time
+# (see docker-compose.yml), so an unset ARTIFACTS_URL leaves them absent here
+# and the mount supplies them. A hosted build must pass the URL.
+ARG ARTIFACTS_URL=""
+
+RUN set -eux; \
+    mkdir -p models; \
+    if [ -n "$ARTIFACTS_URL" ]; then \
+        echo "Fetching artifacts from $ARTIFACTS_URL"; \
+        curl -fsSL "$ARTIFACTS_URL" -o /tmp/artifacts.tar.gz; \
+        tar -xzf /tmp/artifacts.tar.gz -C /app; \
+        rm /tmp/artifacts.tar.gz; \
+        test -f /app/fridge2fork.db || { echo "ERROR: artifacts missing fridge2fork.db"; exit 1; }; \
+        test -f /app/models/cf_model.pkl || { echo "ERROR: artifacts missing models/cf_model.pkl"; exit 1; }; \
+        test -f /app/models/wine_als_model.npz || { echo "ERROR: artifacts missing models/wine_als_model.npz"; exit 1; }; \
+        echo "Artifacts installed:"; du -sh /app/models /app/fridge2fork.db; \
+    else \
+        echo "ARTIFACTS_URL unset — expecting models/ and fridge2fork.db at run time (compose mount)."; \
+    fi
 
 # Hosted platforms (Render, Railway, Fly) inject the port to bind on via $PORT.
 # Shell form so ${PORT} is expanded; falls back to 8000 for local runs.
