@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide covers setup instructions for running exPairing locally, executing full ML training pipelines for both Recipe and Drinks/Wine recommender models, configuring AI vision provider credentials, running Docker containers, and executing the automated test suites.
+This guide covers setup instructions for running exPairing locally, executing full ML training pipelines for both Recipe and Wine recommender models, configuring AI vision provider credentials, running Docker containers, and executing the automated test suites.
 
 ## Prerequisites
 
@@ -70,7 +70,7 @@ python3 -m backend.ml.train_cf                    # Trains models/cf_model.pkl (
 python3 -m backend.ml.train_cb                    # Trains models/cb_matrix.npz (TF-IDF ingredient vectors)
 python3 -m backend.ml.evaluate                    # Evaluates RMSE, Precision@K, NDCG@K → models/eval_results.json
 
-# --- 2. Drinks & Wine Pipeline Training ---
+# --- 2. Wine Pipeline Training ---
 python3 -m data.wine.download_wines               # Downloads X-Wines raw corpus
 python3 -m data.wine.clean_wines                  # Generates clean_wines.csv & clean_ratings.csv
 python3 -m backend.db.reset_wines                 # Recreates wine tables
@@ -127,6 +127,108 @@ The recommended way to run the full stack containerized:
 ```bash
 docker compose -f docker-compose.yml up --build
 ```
+
+### Step 6 — Deploy to a Hosted Platform
+
+**exPairing is deployed and running.** No local clone, training run, or dataset
+download is required to use it:
+
+| Service | URL |
+|---|---|
+| Web application | <https://expairing.onrender.com> |
+| API | <https://expairing-api.onrender.com> |
+
+Both images run unmodified on a Docker-based PaaS (Render, Railway, Fly.io). The steps
+below record how the live deployment was produced, and are reproducible on a fresh
+account.
+
+**Prerequisite — publish the trained artifacts.** `models/` (~468MB) and the seeded
+`fridge2fork.db` (~474MB) are gitignored and exceed GitHub's 100MB per-file limit, so
+the image fetches them at build time instead of copying them from the repository.
+Build a tarball from a machine that has completed Option B above, and attach it to a
+release on a **public** repository (a private repository's release assets are not
+anonymously downloadable, and the build would fail with a 404):
+
+```bash
+# From the project root, after Option B training has produced models/ and the DB
+tar -czf artifacts.tar.gz --exclude='models/wine_split' models fridge2fork.db
+gh release create artifacts-v1 artifacts.tar.gz --title "Trained artifacts"
+
+# The public download URL to pass as ARTIFACTS_URL
+gh release view artifacts-v1 --json assets -q '.assets[].url'
+```
+
+`models/wine_split/` is excluded because it is the frozen evaluation split, read only
+by the training and evaluation scripts and never at serve time.
+
+**Deploy the backend first** — the frontend needs its URL. Create a Render Web Service
+from the repository:
+
+| Setting | Value |
+|---|---|
+| Language | Docker (Render autodetects Python; override it) |
+| Dockerfile path | `./Dockerfile.backend` |
+| Root directory | *(empty — the repository root)* |
+| Docker build context | `.` |
+| Health check path | `/health` |
+| Docker command | *(empty — the image's `CMD` already reads `$PORT`)* |
+| Environment variable | `ARTIFACTS_URL` = the release asset URL from above |
+
+The backend loads the trained models into memory and needs an instance with **at least
+2 GB of RAM**; see *Choosing an instance size* below. Root directory must stay empty
+because `Dockerfile.backend` copies `requirements.txt`, `backend/`, and the fetched
+artifacts from the repository root.
+
+Render passes environment variables to the build as build arguments, which is what
+carries `ARTIFACTS_URL` into the `ARG`. The build downloads and unpacks the artifacts,
+then asserts that `fridge2fork.db`, `models/cf_model.pkl`, and `models/wine_als_model.npz`
+are present — a truncated or wrongly-shaped tarball fails the build rather than producing
+an image that errors on its first request. Note the assigned URL.
+
+**Deploy the frontend.** Create a second Web Service from the same repository:
+
+| Setting | Value |
+|---|---|
+| Language | Docker (Render autodetects Node; override it) |
+| Dockerfile path | `./Dockerfile.frontend` |
+| Root directory | *(empty)* |
+| Docker build context | `./frontend` |
+| Build argument | `VITE_API_URL` = the backend URL from the previous step |
+
+The Dockerfile lives at the repository root, but its `COPY package*.json ./` expects the
+build context to be `frontend/`, where `package.json` and `package-lock.json` are. Set the
+context explicitly and leave the root directory empty: Render resolves the Dockerfile path
+relative to the root directory, so setting the latter to `./frontend` makes the build look
+for `frontend/Dockerfile.frontend`.
+
+Vite inlines `VITE_API_URL` into the JavaScript bundle at build time, so the backend must
+be deployed (or its URL known) first. Changing it later requires a rebuild, not just a
+restart.
+
+**Allow the frontend origin.** On the *backend* service, set the environment variable
+`CORS_ORIGINS` to the frontend's URL (comma-separated for several), then redeploy the
+backend — the origin list is read once at application start, so a restart alone will not
+pick it up. `http://localhost:5173` and `http://localhost:3000` remain allowed by
+default, so local development is unaffected.
+
+**Neither image hardcodes a port.** Both read the `$PORT` that hosted platforms inject —
+the backend passes it to uvicorn, and the frontend renders it into the nginx config at
+container start. No configuration is needed for this.
+
+**Choosing an instance size.** The backend holds the recipe CF model, the content-based
+matrix, the item-similarity matrix, and the wine ALS model resident, warming to roughly
+825 MB of process memory once all endpoints have been exercised. **Provision at least
+2 GB for the backend**; a 512 MB instance passes its health check and is then killed by
+the OOM handler on the first recommendation request. The frontend is a static nginx image
+and runs comfortably on the smallest instance.
+
+Recommendation latency is CPU-bound rather than memory-bound: a wine ranking takes roughly
+ten seconds on a single-core instance, and a larger instance would not change that.
+
+*Sleep caveat:* Render's free web services sleep after roughly 15 minutes of inactivity,
+so the first request after an idle period can take 30–60 seconds while the container
+wakes. This applies to the frontend, which is deployed on a free instance; the backend is
+on a paid instance and stays warm.
 
 ## Post‑install / Verification
 

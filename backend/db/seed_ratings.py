@@ -40,9 +40,16 @@ def seed(limit: int = 0) -> None:
     db = SessionLocal()
 
     try:
-        existing = db.query(UserEvent).filter(UserEvent.event_type == "rate").count()
+        # Only treat the Food.com seed as "already done" if Food.com rows exist.
+        # Food.com users are offset by USER_ID_OFFSET (1000); app/dev users live
+        # below that, so their rating events must not block this seed.
+        existing = (
+            db.query(UserEvent)
+            .filter(UserEvent.event_type == "rate", UserEvent.user_id >= 1000)
+            .count()
+        )
         if existing > 0:
-            print(f"UserEvent table already has {existing} ratings. Skipping.")
+            print(f"UserEvent table already has {existing} Food.com ratings. Skipping.")
             return
 
         # Build set of valid recipe ids already in DB
