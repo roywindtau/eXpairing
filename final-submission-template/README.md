@@ -1,17 +1,17 @@
 
-# exPairing
+# eXpairing
 
-exPairing is a personalized recommendation platform built for the Recommender Systems Workshop at Tel Aviv University. It ranks recipes to minimize food waste by matching what is expiring in your fridge with your personal taste preferences, combined with a dedicated wine module for personalized wine suggestions and automated recipe-wine pairings.
+eXpairing is a personalized recommendation platform built for the Recommender Systems Workshop at Tel Aviv University. It ranks recipes to minimize food waste by matching what is expiring in your fridge with your personal taste preferences, combined with a dedicated wine module for personalized wine suggestions and automated recipe-wine pairings.
 
 &nbsp;<br>
 ## Live Application
 
-exPairing is deployed and running — no clone, dataset download, or training run required:
+eXpairing is deployed and running, so no clone, dataset download, or training run is required:
 
 | | |
 |---|---|
-| **Web application** | **<https://expairing.onrender.com>** |
-| API | <https://expairing-api.onrender.com> ([Swagger UI](https://expairing-api.onrender.com/docs)) |
+| **Web application** | **<https://eXpairing.onrender.com>** |
+| API | <https://eXpairing-api.onrender.com> ([Swagger UI](https://eXpairing-api.onrender.com/docs)) |
 
 The web application is hosted on a free instance and sleeps after roughly 15 minutes of inactivity, so the first page load after an idle period can take 30–60 seconds while it wakes. Recommendation requests take a few seconds to return: ranking is CPU-bound and the deployed instance is single-core. Both are expected behaviour, not faults.
 
@@ -22,14 +22,15 @@ To run the project locally instead, see the [Installation Guide](install.md).
 
 You can find all the documentation in the following files:
 
-- [Installation Guide](install.md)
 - [Project Summary](summary.md)
 - [Modules Description](modules.md)
+- [Installation Guide](install.md)
+
 
 &nbsp;<br>
 ## About
 
-exPairing operates as a startup-grade smart dining assistant designed to solve a major household problem: pantries are full but invisible. People buy ingredients, put them in the fridge, and forget they exist until they expire. Traditional recipe applications ask *"What do you feel like cooking today?"*, whereas **exPairing flips this paradigm entirely**, asking:  
+eXpairing operates as a smart dining assistant designed to solve a major household problem: pantries are full but hard to maintain. People buy ingredients, put them in the fridge, and forget they exist until they expire. Traditional recipe applications ask *"What do you feel like cooking today?"*, whereas **eXpairing flips this paradigm**, asking:  
 > *"Given what is expiring in your fridge right now and how you actually cook, what is the highest-quality meal you will thoroughly enjoy?"*
 
 It bridges the gap between **Personal Taste Preference** (what you love to eat) and **Real-World Household Feasibility** (what is expiring in your fridge). In addition, it integrates a full **Wine Recommender Module** to deliver personalized wine suggestions and automated recipe-wine pairing, providing a complete end-to-end culinary experience.
@@ -46,14 +47,18 @@ It bridges the gap between **Personal Taste Preference** (what you love to eat) 
 
 ### Authors
 
-- Roy Wind, Yoav Geva, Ben, Roei Shlein 
+- Roy Wind, Yoav Geva, Ben Carmel, Roei Shlein 
 - Course Instructors: Dr. Rubi Boim, Stav Koren
 
 &nbsp;
 
 ## Screenshots
 
-![Onboarding page](images/home_onboarding.png)
-![Main Recipes Suggestions - Cold Start](images/feed_cold_start.png)
-![Main Recipes Suggestions - Warm](images/recipe_feed_breakdown.png)
-![Pantry expiry page](images/pantry_expiry_badges.png)
+![Onboarding page](images/onboarding.png)
+![Pantry Expiry + Scan Photo + Shopping List page](images/pantryAndShoppingList.png)
+![Main Recipes Suggestions Page](images/recipes.png)
+![Recipes Card - Score Breakdown, Add to Shopping list](images/fullRecipeCard.png)
+![Recipes Page - Full Steps + Matching of wine specific to recipe \](images/pairingForSpecificRecipe.png)
+![Wine Cold Start Page](images/wineColdStart.png)
+![Wine Suggestions Page](images/winePage.png)
+![User Profile](images/profile.png)

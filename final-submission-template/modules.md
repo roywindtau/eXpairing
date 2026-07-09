@@ -6,13 +6,13 @@
 Food waste is a major financial, logistical, and environmental challenge in modern households. Pantries and fridges are full but invisible — consumers frequently purchase ingredients, put them away, and forget they exist until they have already expired. Even when users notice an item approaching its expiration date, they struggle to spontaneously recall a recipe that utilizes it, resulting in preventable food waste and unnecessary grocery expenditures.
 
 Traditional recommender systems and recipe platforms ask: *"What sounds good to eat?"* or *"What do you feel like cooking?"*  
-**exPairing completely re-engineers this paradigm.** Built like a startup product for the Tel Aviv University Recommender Systems Workshop, exPairing operates as an intelligent culinary assistant that asks:
+**eXpairing re-engineers this paradigm.** eXpairing operates as an intelligent culinary assistant that asks:
 > *"Given what is expiring in your fridge right now and how you actually cook, what is the highest-quality meal you will thoroughly enjoy?"*
 
 ### Key Product Value Drivers
 1. **Dual-Signal Balancing (Preference vs. Feasibility)**: Combines machine learning preference predictions (what you enjoy) with physical household constraints (what is expiring and available in your fridge right now).
 2. **Seamless Multi-Modal Inventory Ingestion**: Multi-modal vision scanning (GPT-4o / Gemini 2.5 Flash) and debounced ingredient autocomplete eliminate the friction of manual pantry logging. An automated canonicalization engine strips store packaging noise ("Tnuva 3% Milk") to map items onto standardized recipe tokens ("milk").
-3. **Behavioral Adaptation & Revealed Preference Learning**: Recognizes that users often exhibit aspirational bias when setting waste aversion preferences ($\beta$). exPairing tracks revealed cooking behavior (`n_missing`) and smoothly drifts $\beta$ via Exponential Moving Average (EMA) batch updates, displaying a profile alert when stated and revealed preferences diverge by $>10\%$.
+3. **Behavioral Adaptation & Revealed Preference Learning**: Recognizes that users often exhibit aspirational bias when setting waste aversion preferences ($\beta$). eXpairing tracks revealed cooking behavior (`n_missing`) and smoothly drifts $\beta$ via Exponential Moving Average (EMA) batch updates, displaying a profile alert when stated and revealed preferences diverge by $>10\%$.
 4. **End-to-End Culinary & Dining Experience**: Extends beyond recipe recommendation into a full household utility. Includes interactive step-by-step cooking instructions, persistent shopping list management with one-click check-offs, 7-day skip exclusion memory, and a dedicated **Wine Recommender** that pairs wines directly with recipes or suggests personalized bottles matching user palates.
 
 &nbsp;<br>
@@ -248,7 +248,7 @@ The system is designed with a decoupled three-layer architecture: a React TypeSc
 
 ## Modules & Source Code
 
-exPairing is organized into eleven modules spanning the **Recipe Recommender System** and the **Wine Recommender Module**. The table below maps each module to its technology stack, core responsibility, and source location; the algorithmic depth behind each engine is covered in [Main Algorithms & Core Rationale](#main-algorithms--core-rationale) above.
+eXpairing is organized into eleven modules spanning the **Recipe Recommender System** and the **Wine Recommender Module**. The table below maps each module to its technology stack, core responsibility, and source location; the algorithmic depth behind each engine is covered in [Main Algorithms & Core Rationale](#main-algorithms--core-rationale) above.
 
 | Module | Technology | Core Responsibility | Source Code |
 | --- | --- | --- | --- |
@@ -268,7 +268,7 @@ exPairing is organized into eleven modules spanning the **Recipe Recommender Sys
 &nbsp;<br>
 
 ## Development Environment
-- **Cursor & VS Code** - used for React frontend UI development, FastAPI backend service orchestration, and ML training scripts.
+- **VS Code** - used for React frontend UI development, FastAPI backend service orchestration, and ML training scripts.
 - **Pytest & Playwright** - used for backend unit testing (530+ tests) and end-to-end browser behavioral verification (63 tests).
 
 &nbsp;<br>

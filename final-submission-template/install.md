@@ -1,6 +1,14 @@
 # Installation Guide
 
-This guide covers setup instructions for running exPairing locally, executing full ML training pipelines for both Recipe and Wine recommender models, configuring AI vision provider credentials, running Docker containers, and executing the automated test suites.
+This guide covers setup instructions for running eXpairing locally, executing full ML training pipelines for both Recipe and Wine recommender models, configuring AI vision provider credentials, running Docker containers, and executing the automated test suites.
+
+**eXpairing is deployed and running.** No local clone, training run, or dataset
+download is required to use it:
+
+| Service | URL |
+|---|---|
+| Web application | <https://eXpairing.onrender.com> |
+| API | <https://eXpairing-api.onrender.com> |
 
 ## Prerequisites
 
@@ -90,7 +98,7 @@ python3 -m data.pairing.build_wine_pairing_vectors   # Generates models/wine_pai
 ```
 
 ### Step 4 — Configure AI Vision Provider Tokens (Optional)
-The fridge photo scanning feature uses vision AI to identify items and read expiration dates. You can configure either OpenAI GPT-4o or Google Gemini 2.5 Flash API tokens. Without an API token, the application seamlessly falls back to a built-in mock scanner returning realistic test items.
+The fridge photo scanning feature uses vision AI to identify items and read expiration dates. You can configure either OpenAI GPT-4o or Google Gemini 2.5 Flash API tokens. Without an API token, the application falls back to a built-in mock scanner returning realistic test items.
 
 ```bash
 # Option 1: OpenAI GPT-4o Vision
@@ -128,18 +136,56 @@ The recommended way to run the full stack containerized:
 docker compose -f docker-compose.yml up --build
 ```
 
-### Step 6 — Deploy to a Hosted Platform
+## Post‑install / Verification
 
-**exPairing is deployed and running.** No local clone, training run, or dataset
-download is required to use it:
+* **Backend Health Check**:
+  ```bash
+  curl http://localhost:8000/health
+  ```
+  Expected output: `{"status":"ok"}`.
+* **Interactive API Documentation**: Access Swagger UI at `http://localhost:8000/docs`.
+* **Frontend Web App**: Navigate to `http://localhost:5173` in your browser.
+* **Probe Wine API Endpoints Directly**:
+  ```bash
+  # Fetch top 10 popular/personalized wines
+  curl "http://localhost:8000/wine/ranked?top_n=10" | jq
 
-| Service | URL |
-|---|---|
-| Web application | <https://expairing.onrender.com> |
-| API | <https://expairing-api.onrender.com> |
+  # Log a wine rating event (1-5 stars)
+  curl -X POST "http://localhost:8000/wine-events" \
+       -H "Content-Type: application/json" \
+       -d '{"user_id":1,"wine_id":100001,"event_type":"rate","rating":4.5}'
+  ```
 
-Both images run unmodified on a Docker-based PaaS (Render, Railway, Fly.io). The steps
-below record how the live deployment was produced, and are reproducible on a fresh
+### Running Test Suites
+Execute backend and frontend test coverage to verify system correctness:
+
+```bash
+# 1. Run all unit + behavioral integration tests (530+ tests)
+python3 -m pytest tests/ -v
+
+# 2. Run unit tests only (fast, no live backend needed)
+python3 -m pytest tests/ -v --ignore=tests/test_ml_behavior.py
+
+# 3. Run End-to-End Playwright frontend tests (63 tests)
+cd frontend
+npx playwright test --reporter=list
+```
+
+## Troubleshooting
+
+* **Port Conflicts (8000 or 5173 already in use)**: Verify no orphaned `uvicorn` or `vite` processes are running. Kill running background processes on port 8000 or 5173 before launching.
+* **Flat Wine Popularity Scores**: If wine recommendations return identical popularity scores after a full-dataset seed (Option B), ensure `python3 -m backend.db.wine.compute_wine_stats` was executed to aggregate ratings into the popularity prior. (The Option A sample catalog ships with popularity stats pre-computed, so this step does not apply there.)
+* **Missing AI Vision Tokens**: If neither `OPENAI_API_KEY` nor `GEMINI_API_KEY` is configured, the `/vision/scan` endpoint will raise a runtime error if called directly, but the UI demo scanner invokes `/vision/mock` automatically. Set an API token in `.env` for real photo processing.
+* **SQLite Database Lock Errors**: SQLite locks the database file during write operations. Restart uvicorn processes or execute `python3 -m backend.db.seed_dev` to reset state if locks persist.
+
+
+### Appendix — Deploy to a Hosted Platform
+
+**eXpairing is deployed and running.** No local clone, training run, or dataset
+download is required to use it.
+Images run unmodified on a Docker-based PaaS (Render, Railway, Fly.io).
+
+The steps below record how the live deployment was produced, and are reproducible on a fresh
 account.
 
 **Prerequisite — publish the trained artifacts.** `models/` (~468MB) and the seeded
@@ -229,45 +275,3 @@ ten seconds on a single-core instance, and a larger instance would not change th
 so the first request after an idle period can take 30–60 seconds while the container
 wakes. This applies to the frontend, which is deployed on a free instance; the backend is
 on a paid instance and stays warm.
-
-## Post‑install / Verification
-
-* **Backend Health Check**:
-  ```bash
-  curl http://localhost:8000/health
-  ```
-  Expected output: `{"status":"ok"}`.
-* **Interactive API Documentation**: Access Swagger UI at `http://localhost:8000/docs`.
-* **Frontend Web App**: Navigate to `http://localhost:5173` in your browser.
-* **Probe Wine API Endpoints Directly**:
-  ```bash
-  # Fetch top 10 popular/personalized wines
-  curl "http://localhost:8000/wine/ranked?top_n=10" | jq
-
-  # Log a wine rating event (1-5 stars)
-  curl -X POST "http://localhost:8000/wine-events" \
-       -H "Content-Type: application/json" \
-       -d '{"user_id":1,"wine_id":100001,"event_type":"rate","rating":4.5}'
-  ```
-
-### Running Test Suites
-Execute backend and frontend test coverage to verify system correctness:
-
-```bash
-# 1. Run all unit + behavioral integration tests (530+ tests)
-python3 -m pytest tests/ -v
-
-# 2. Run unit tests only (fast, no live backend needed)
-python3 -m pytest tests/ -v --ignore=tests/test_ml_behavior.py
-
-# 3. Run End-to-End Playwright frontend tests (63 tests)
-cd frontend
-npx playwright test --reporter=list
-```
-
-## Troubleshooting
-
-* **Port Conflicts (8000 or 5173 already in use)**: Verify no orphaned `uvicorn` or `vite` processes are running. Kill running background processes on port 8000 or 5173 before launching.
-* **Flat Wine Popularity Scores**: If wine recommendations return identical popularity scores after a full-dataset seed (Option B), ensure `python3 -m backend.db.wine.compute_wine_stats` was executed to aggregate ratings into the popularity prior. (The Option A sample catalog ships with popularity stats pre-computed, so this step does not apply there.)
-* **Missing AI Vision Tokens**: If neither `OPENAI_API_KEY` nor `GEMINI_API_KEY` is configured, the `/vision/scan` endpoint will raise a runtime error if called directly, but the UI demo scanner invokes `/vision/mock` automatically. Set an API token in `.env` for real photo processing.
-* **SQLite Database Lock Errors**: SQLite locks the database file during write operations. Restart uvicorn processes or execute `python3 -m backend.db.seed_dev` to reset state if locks persist.
