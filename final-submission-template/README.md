@@ -54,11 +54,12 @@ It bridges the gap between **Personal Taste Preference** (what you love to eat) 
 
 ## Screenshots
 
-![Onboarding page](images/onboarding.png)
+![Onboarding page](images/Onboarding.png)
 ![Pantry Expiry + Scan Photo + Shopping List page](images/pantryAndShoppingList.png)
 ![Main Recipes Suggestions Page](images/recipes.png)
 ![Recipes Card - Score Breakdown, Add to Shopping list](images/fullRecipeCard.png)
-![Recipes Page - Full Steps + Matching of wine specific to recipe \](images/pairingForSpecificRecipe.png)
+
+![Recipes Page - Full Steps + Matching of wine specific to recipe](images/pairingForSpecificRecipe.png)
 ![Wine Cold Start Page](images/wineColdStart.png)
 ![Wine Suggestions Page](images/winePage.png)
 ![User Profile](images/profile.png)
