@@ -128,6 +128,70 @@ The recommended way to run the full stack containerized:
 docker compose -f docker-compose.yml up --build
 ```
 
+### Step 6 — Deploy to a Hosted Platform (Optional)
+
+Both images run unmodified on a Docker-based PaaS (Render, Railway, Fly.io), so the
+application can be served from a URL without a local clone or a training run. The
+steps below use Render.
+
+**Prerequisite — publish the trained artifacts.** `models/` (~468MB) and the seeded
+`fridge2fork.db` (~474MB) are gitignored and exceed GitHub's 100MB per-file limit, so
+the image fetches them at build time instead of copying them from the repository.
+Build a tarball from a machine that has completed Option B above, and attach it to a
+release on a **public** repository (a private repository's release assets are not
+anonymously downloadable, and the build would fail with a 404):
+
+```bash
+# From the project root, after Option B training has produced models/ and the DB
+tar -czf artifacts.tar.gz --exclude='models/wine_split' models fridge2fork.db
+gh release create artifacts-v1 artifacts.tar.gz --title "Trained artifacts"
+
+# The public download URL to pass as ARTIFACTS_URL
+gh release view artifacts-v1 --json assets -q '.assets[].url'
+```
+
+`models/wine_split/` is excluded because it is the frozen evaluation split, read only
+by the training and evaluation scripts and never at serve time.
+
+**Deploy the backend.** Create a Render Web Service from the repository:
+
+| Setting | Value |
+|---|---|
+| Runtime | Docker |
+| Dockerfile path | `Dockerfile.backend` |
+| Root directory | `.` (repository root) |
+| Build argument | `ARTIFACTS_URL` = the release asset URL from above |
+
+The build downloads and unpacks the artifacts, then asserts that `fridge2fork.db`,
+`models/cf_model.pkl`, and `models/wine_als_model.npz` are present — a truncated or
+wrongly-shaped tarball fails the build rather than producing an image that errors on
+its first request. Note the assigned URL (e.g. `https://expairing-api.onrender.com`).
+
+**Deploy the frontend.** Create a second Web Service from the same repository:
+
+| Setting | Value |
+|---|---|
+| Runtime | Docker |
+| Dockerfile path | `Dockerfile.frontend` |
+| Root directory | `./frontend` |
+| Build argument | `VITE_API_URL` = the backend URL from the previous step |
+
+Vite inlines `VITE_API_URL` into the JavaScript bundle at build time, so the backend
+must be deployed (or its URL known) first. Changing it later requires a rebuild, not
+just a restart.
+
+**Allow the frontend origin.** On the *backend* service, set the environment variable
+`CORS_ORIGINS` to the frontend's URL (comma-separated for several). `http://localhost:5173`
+and `http://localhost:3000` remain allowed by default, so local development is unaffected.
+
+**Neither image hardcodes a port.** Both read the `$PORT` that hosted platforms inject —
+the backend passes it to uvicorn, and the frontend renders it into the nginx config at
+container start. No configuration is needed for this.
+
+*Free-tier caveat:* Render's free web services sleep after roughly 15 minutes of
+inactivity, so the first request after an idle period can take 30–60 seconds while the
+container wakes. Both services sleep independently.
+
 ## Post‑install / Verification
 
 * **Backend Health Check**:
