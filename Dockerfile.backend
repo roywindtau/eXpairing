@@ -2,16 +2,35 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y curl gcc ca-certificates && rm -rf /var/lib/apt/lists/*
-
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    && python -c "import certifi, shutil; shutil.copy('/etc/ssl/certs/ca-certificates.crt', certifi.where())"
+
+# curl (healthcheck), ca-certificates, and libgomp1 persist; gcc/g++ only
+# compile scikit-surprise / implicit during pip install. Installing, building,
+# and purging the compilers in ONE layer keeps them out of the image — a purge
+# in a later layer would leave the bytes behind in the earlier one.
+#
+# libgomp1 (OpenMP runtime) must be installed explicitly AFTER the purge:
+# it arrives as a gcc dependency, and autoremove would take it with gcc — but
+# implicit's ALS extension links against libgomp.so.1 at runtime.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && apt-get install -y --no-install-recommends gcc g++ \
+    && pip install --no-cache-dir -r requirements.txt \
+    && python -c "import certifi, shutil; shutil.copy('/etc/ssl/certs/ca-certificates.crt', certifi.where())" \
+    && apt-get purge -y gcc g++ \
+    && apt-get autoremove -y \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY backend/ ./backend/
 COPY data/     ./data/
 
-# Create dirs that must exist at runtime
-RUN mkdir -p models
+# Trained model artifacts and the seeded database are baked into the image so
+# the container serves immediately — no training or seeding at deploy time.
+# (.dockerignore excludes models/wine_split/, which is eval-only.)
+COPY models/        ./models/
+COPY fridge2fork.db ./fridge2fork.db
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Hosted platforms (Render, Railway, Fly) inject the port to bind on via $PORT.
+# Shell form so ${PORT} is expanded; falls back to 8000 for local runs.
+CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}

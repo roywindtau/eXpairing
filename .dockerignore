@@ -1,0 +1,33 @@
+# ── Docker build context exclusions ─────────────────────────────────────────
+# The backend image ships a pre-seeded fridge2fork.db and pre-trained models/,
+# so raw datasets and eval-only artifacts are never read at serve time. Keeping
+# them out of the build context cuts the image by ~1.9GB.
+
+# Raw datasets — only consumed by seed_*/train_* scripts, never at serve time.
+data/RAW_recipes.csv
+data/RAW_interactions.csv
+data/wine/
+data/*.ipynb
+
+# Frozen leave-5-out evaluation split — training/eval only.
+models/wine_split/
+
+# Python / tooling noise
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# VCS + editor
+.git/
+.gitignore
+.claude/
+
+# Frontend build inputs (frontend image builds from ./frontend context)
+frontend/node_modules/
+frontend/dist/
+
+# Tests aren't needed in the runtime image
+tests/

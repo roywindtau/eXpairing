@@ -11,6 +11,7 @@ Then open:
     http://localhost:8000/redoc -- ReDoc UI
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -39,10 +40,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Allow the React dev server (port 5173) to call the API
+# Allow the React dev server (port 5173) to call the API. In deployed
+# environments the frontend lives on another origin, so extra origins can be
+# supplied via CORS_ORIGINS as a comma-separated list.
+_default_origins = ["http://localhost:5173", "http://localhost:3000"]
+_extra_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=_default_origins + _extra_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

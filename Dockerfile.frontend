@@ -5,6 +5,8 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+# Baked in at build time — Vite inlines import.meta.env.VITE_API_URL into the
+# bundle, so the deployed backend URL must be supplied as a build arg.
 ARG VITE_API_URL=http://localhost:8000
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
@@ -14,8 +16,25 @@ FROM nginx:alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# React Router needs all paths to serve index.html
-RUN printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  location / { try_files $uri $uri/ /index.html; }\n}\n' \
-    > /etc/nginx/conf.d/default.conf
+# Hosted platforms (Render, Railway, Fly) inject the port to bind on via $PORT,
+# but nginx cannot read env vars in its config. The nginx:alpine entrypoint
+# runs envsubst over /etc/nginx/templates/*.template into /etc/nginx/conf.d/
+# at startup, so bind the port from a template.
+#
+# NGINX_ENVSUBST_FILTER restricts substitution to PORT — without it, envsubst
+# would also replace nginx's own $uri variable and break SPA routing.
+# Single-quoted heredoc keeps $PORT and $uri literal in the template.
+RUN mkdir -p /etc/nginx/templates && rm -f /etc/nginx/conf.d/default.conf \
+    && cat > /etc/nginx/templates/default.conf.template <<'NGINX_TEMPLATE'
+server {
+  listen ${PORT};
+  root /usr/share/nginx/html;
 
+  # React Router needs all paths to serve index.html
+  location / { try_files $uri $uri/ /index.html; }
+}
+NGINX_TEMPLATE
+
+ENV PORT=80
+ENV NGINX_ENVSUBST_FILTER=PORT
 EXPOSE 80
